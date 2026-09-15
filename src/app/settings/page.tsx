@@ -14,19 +14,17 @@ export default function SettingsPage() {
   const router = useRouter();
   const { user, mutate } = useCurrentUser();
 
-  // Profile form state
   const [fullName, setFullName] = useState("");
   const [bio, setBio] = useState("");
   const [isBusiness, setIsBusiness] = useState(false);
   const [avatar, setAvatar] = useState("");
-  
-  // Password form state
+
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
-  
+
   const [profileMsg, setProfileMsg] = useState("");
   const [passwordMsg, setPasswordMsg] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -108,7 +106,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="px-4 flex flex-col gap-8 mt-2">
-        {/* Profile Settings */}
         <section className="flex flex-col gap-4">
           <div className="flex items-center gap-2 mb-1">
             <UserIcon size={18} className="text-brand" />
@@ -118,7 +115,7 @@ export default function SettingsPage() {
           <div className="flex flex-col items-center gap-2">
             <div className="relative h-24 w-24 rounded-full overflow-hidden border-2 border-border bg-border">
               <Image src={avatar} alt="Avatar" fill className="object-cover" unoptimized />
-              <button 
+              <button
                 onClick={() => fileRef.current?.click()}
                 className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity text-white"
               >
@@ -157,11 +154,11 @@ export default function SettingsPage() {
             <div className={`w-11 h-6 rounded-full transition-colors flex items-center px-1 ${isBusiness ? 'bg-brand' : 'bg-border'}`}>
               <div className={`w-4 h-4 rounded-full bg-white transition-transform ${isBusiness ? 'translate-x-5' : 'translate-x-0'}`} />
             </div>
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               checked={isBusiness}
               onChange={(e) => setIsBusiness(e.target.checked)}
-              className="hidden" 
+              className="hidden"
             />
           </label>
 
@@ -178,7 +175,6 @@ export default function SettingsPage() {
 
         <div className="h-px bg-border w-full" />
 
-        {/* Password Settings */}
         <section className="flex flex-col gap-4">
           <div className="flex items-center gap-2 mb-1">
             <KeyRound size={18} className="text-brand" />
@@ -194,7 +190,7 @@ export default function SettingsPage() {
               className="bg-surface border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-brand"
             />
           </div>
-          
+
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted ml-1">New Password</label>
             <input

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 import { setCachedUsername } from "./auth";
 import type { UserProfile } from "./types";
@@ -10,8 +10,10 @@ export function useCurrentUser() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchUser = useCallback(() => {
     let cancelled = false;
+    setLoading(true);
+    setError(null);
     api
       .me()
       .then((profile) => {
@@ -30,5 +32,24 @@ export function useCurrentUser() {
     };
   }, []);
 
-  return { user, loading, error };
+  useEffect(() => {
+    const cancel = fetchUser();
+    return cancel;
+  }, [fetchUser]);
+
+  // mutate(updated) -> set user directly, no refetch (e.g. after a successful save)
+  // mutate()        -> refetch the user from the server
+  const mutate = useCallback(
+    (updated?: UserProfile) => {
+      if (updated) {
+        setUser(updated);
+        setCachedUsername(updated.username);
+      } else {
+        fetchUser();
+      }
+    },
+    [fetchUser]
+  );
+
+  return { user, loading, error, mutate };
 }
