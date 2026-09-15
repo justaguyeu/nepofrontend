@@ -7,8 +7,8 @@ import type {
   Comment, Post, Reel, Story, UserProfile,
 } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://nepobackend.onrender.com/api";
+// http://localhost:8000/api
 interface Paginated<T> {
   results: T[];
   next: string | null;
