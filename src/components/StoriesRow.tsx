@@ -44,7 +44,7 @@ export default function StoriesRow({
         return (
           <Link
             key={g.author.id}
-            href={`/profile/${g.author.username}`}
+            href={`/story/${g.author.username}`}
             className="flex flex-col items-center gap-1.5 shrink-0 w-[60px]"
           >
             <div className="relative h-[56px] w-[56px]">

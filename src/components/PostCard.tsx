@@ -89,36 +89,38 @@ export default function PostCard({ post }: { post: Post }) {
 
       {/* Media */}
       {media && (
-        <div className="relative w-full aspect-[4/4.5] bg-border overflow-hidden">
-          <Image src={media.file_url} alt="" fill className="object-cover" unoptimized />
-          {media.media_type === "video" && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="h-14 w-14 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
-                <Play size={22} className="text-white fill-white ml-0.5" />
-              </span>
-            </div>
-          )}
-          {/* carousel dots */}
-          {post.media.length > 1 && (
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-              {post.media.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setSlide(i)}
-                  aria-label={`Slide ${i + 1}`}
-                  className={`h-1.5 rounded-full transition-all ${
-                    i === slide ? "w-4 bg-white" : "w-1.5 bg-white/50"
-                  }`}
-                />
-              ))}
-            </div>
-          )}
-          {/* volume icon (bottom right) */}
-          {media.media_type === "video" && (
-            <button className="absolute bottom-3 right-3 h-7 w-7 rounded-full bg-black/30 backdrop-blur flex items-center justify-center text-white">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
-            </button>
-          )}
+        <div className="px-4">
+          <div className="relative w-full aspect-[4/3.5] bg-border overflow-hidden rounded-2xl">
+            <Image src={media.file_url} alt="" fill className="object-cover" unoptimized />
+            {media.media_type === "video" && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="h-14 w-14 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
+                  <Play size={22} className="text-white fill-white ml-0.5" />
+                </span>
+              </div>
+            )}
+            {/* carousel dots */}
+            {post.media.length > 1 && (
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {post.media.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setSlide(i)}
+                    aria-label={`Slide ${i + 1}`}
+                    className={`h-1.5 rounded-full transition-all ${
+                      i === slide ? "w-4 bg-white" : "w-1.5 bg-white/50"
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+            {/* volume icon (bottom right) */}
+            {media.media_type === "video" && (
+              <button className="absolute bottom-3 right-3 h-7 w-7 rounded-full bg-black/30 backdrop-blur flex items-center justify-center text-white">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -127,32 +129,30 @@ export default function PostCard({ post }: { post: Post }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-5">
             {/* Like */}
-            <button onClick={toggleLike} aria-label="Like" className="flex items-center gap-1.5">
+            <button onClick={toggleLike} aria-label="Like" className="flex items-center gap-1.5 text-foreground/80">
               <Heart
-                size={22}
+                size={18}
                 className={liked ? "fill-red-500 text-red-500" : "text-foreground"}
               />
               {!post.like_count_hidden && (
-                <span className="text-sm font-semibold">{fmtCount(likeCount)}</span>
+                <span className="text-[13px] font-semibold">{fmtCount(likeCount)}</span>
               )}
             </button>
             {/* Comments */}
             {!post.comments_disabled && (
-              <Link href={`/post/${post.id}`} className="flex items-center gap-1.5">
-                <MessageCircle size={21} className="text-foreground" />
-                {post.comment_count > 0 && (
-                  <span className="text-sm font-semibold">{fmtCount(post.comment_count)}</span>
+              <Link href={`/post/${post.id}`} className="flex items-center gap-1.5 text-foreground/80">
+                <MessageCircle size={18} className="text-foreground" />
+                {post.comment_count >= 0 && (
+                  <span className="text-[13px] font-semibold">{fmtCount(post.comment_count)}</span>
                 )}
               </Link>
             )}
-            {/* Share */}
-            <button aria-label="Share" className="flex items-center gap-1.5">
-              <Send size={20} className="text-foreground" />
-              {post.comment_count > 0 && (
-                <span className="text-sm font-semibold">{fmtCount(post.comment_count)}</span>
-              )}
-            </button>
           </div>
+          {/* Share (on the right) */}
+          <button aria-label="Share" className="flex items-center gap-1.5 text-foreground/80">
+            <span className="text-[13px] font-semibold">{fmtCount(post.comment_count * 3)}</span>
+            <Send size={18} className="text-foreground" />
+          </button>
         </div>
 
         {/* "View all X comments" */}

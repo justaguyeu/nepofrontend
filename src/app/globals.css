@@ -35,9 +35,9 @@ body {
 * { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* story ring gradient */
+/* story ring */
 .story-ring {
-  background: linear-gradient(135deg, #8bd400 0%, #3ecf3e 100%);
+  background: #8bd400;
   padding: 2.5px;
   border-radius: 9999px;
 }

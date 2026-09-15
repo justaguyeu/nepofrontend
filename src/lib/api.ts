@@ -84,8 +84,10 @@ export const api = {
       skipAuth: true,
     }),
   me: () => apiFetch<UserProfile>("/users/me/"),
-  updateMe: (payload: Partial<Pick<UserProfile, "bio" | "full_name" | "website" | "avatar_url" | "is_private">>) =>
+  updateMe: (payload: Partial<Pick<UserProfile, "bio" | "full_name" | "website" | "avatar_url" | "is_private" | "is_business">>) =>
     apiFetch<UserProfile>("/users/me/", { method: "PATCH", body: JSON.stringify(payload) }),
+  changePassword: (payload: { old_password: string; new_password: string }) =>
+    apiFetch<{ detail: string }>("/users/change_password/", { method: "POST", body: JSON.stringify(payload) }),
   profile: (username: string) => apiFetch<UserProfile>(`/users/${username}/`),
 
   feed: () => apiList<Post>("/posts/feed/"),
