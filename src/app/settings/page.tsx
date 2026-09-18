@@ -9,22 +9,37 @@ import { clearSession } from "@/lib/auth";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { api } from "@/lib/api";
 import { avatarUrl } from "@/lib/utils";
+import type { BusinessCategory } from "@/lib/types";
 
 export default function SettingsPage() {
   const router = useRouter();
   const { user, mutate } = useCurrentUser();
 
+  // Profile form state
   const [fullName, setFullName] = useState("");
   const [bio, setBio] = useState("");
   const [isBusiness, setIsBusiness] = useState(false);
-  const [avatar, setAvatar] = useState("");
+  const [avatar, setAvatar] = useState<string | null>(null);
 
+  // Business form state
+  const [categories, setCategories] = useState<BusinessCategory[]>([]);
+  const [businessExists, setBusinessExists] = useState(false);
+  const [categoryId, setCategoryId] = useState<number | "">("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [address, setAddress] = useState("");
+  const [savingBusiness, setSavingBusiness] = useState(false);
+  const [businessMsg, setBusinessMsg] = useState("");
+
+  // Password form state
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
-
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  
   const [profileMsg, setProfileMsg] = useState("");
   const [passwordMsg, setPasswordMsg] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -35,8 +50,43 @@ export default function SettingsPage() {
       setBio(user.bio || "");
       setIsBusiness(user.is_business);
       setAvatar(avatarUrl(user));
+      if (user.is_business) {
+        api.businessCategories().then(setCategories).catch(() => {});
+        api.business(user.username).then((b) => {
+          if (b) {
+            setBusinessExists(true);
+            setCategoryId(b.category?.id ?? "");
+            setContactPhone(b.contact_phone);
+            setContactEmail(b.contact_email);
+            setWhatsapp(b.whatsapp_number);
+            setAddress(b.address);
+          }
+        }).catch(() => {});
+      }
     }
   }, [user]);
+
+  async function handleSaveBusiness() {
+    if (!user) return;
+    setSavingBusiness(true);
+    setBusinessMsg("");
+    try {
+      await api.saveBusinessProfile(user.username, businessExists, {
+        category_id: categoryId === "" ? undefined : categoryId,
+        contact_phone: contactPhone,
+        contact_email: contactEmail,
+        whatsapp_number: whatsapp,
+        address,
+      });
+      setBusinessExists(true);
+      setBusinessMsg("Business info saved!");
+      setTimeout(() => setBusinessMsg(""), 3000);
+    } catch {
+      setBusinessMsg("Failed to save business info.");
+    } finally {
+      setSavingBusiness(false);
+    }
+  }
 
   function handleLogout() {
     clearSession();
@@ -47,13 +97,29 @@ export default function SettingsPage() {
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Show instant local preview
+    const localPreview = URL.createObjectURL(file);
+    setAvatar(localPreview);
+    setUploadingAvatar(true);
+    setProfileMsg("");
     try {
       const { url } = await api.uploadMedia(file, "avatars");
       const updated = await api.updateMe({ avatar_url: url });
       mutate(updated);
+      // Replace local blob URL with the real persisted URL
       setAvatar(avatarUrl(updated));
+      URL.revokeObjectURL(localPreview);
+      setProfileMsg("Profile picture updated!");
+      setTimeout(() => setProfileMsg(""), 3000);
     } catch {
-      setProfileMsg("Failed to upload avatar.");
+      setProfileMsg("Failed to upload photo. Please try again.");
+      // Revert to previous avatar on failure
+      setAvatar(user ? avatarUrl(user) : null);
+      URL.revokeObjectURL(localPreview);
+    } finally {
+      setUploadingAvatar(false);
+      // Reset input so the same file can be re-selected after an error
+      if (fileRef.current) fileRef.current.value = "";
     }
   }
 
@@ -86,8 +152,8 @@ export default function SettingsPage() {
       setOldPassword("");
       setNewPassword("");
       setTimeout(() => setPasswordMsg(""), 3000);
-    } catch (err: any) {
-      setPasswordMsg(err.message || "Failed to change password.");
+    } catch (err) {
+      setPasswordMsg(err instanceof Error ? err.message : "Failed to change password.");
     } finally {
       setSavingPassword(false);
     }
@@ -106,6 +172,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="px-4 flex flex-col gap-8 mt-2">
+        {/* Profile Settings */}
         <section className="flex flex-col gap-4">
           <div className="flex items-center gap-2 mb-1">
             <UserIcon size={18} className="text-brand" />
@@ -114,15 +181,37 @@ export default function SettingsPage() {
 
           <div className="flex flex-col items-center gap-2">
             <div className="relative h-24 w-24 rounded-full overflow-hidden border-2 border-border bg-border">
-              <Image src={avatar} alt="Avatar" fill className="object-cover" unoptimized />
-              <button
-                onClick={() => fileRef.current?.click()}
-                className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity text-white"
-              >
-                <Camera size={24} />
-              </button>
+              {avatar ? (
+                <Image src={avatar} alt="Avatar" fill className="object-cover" unoptimized />
+              ) : (
+                <div className="absolute inset-0 bg-border" />
+              )}
+              {/* Upload spinner overlay */}
+              {uploadingAvatar && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <svg className="animate-spin h-7 w-7 text-brand" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                </div>
+              )}
+              {/* Camera hover overlay — hidden while uploading */}
+              {!uploadingAvatar && (
+                <button 
+                  onClick={() => fileRef.current?.click()}
+                  className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity text-white"
+                >
+                  <Camera size={24} />
+                </button>
+              )}
             </div>
-            <button onClick={() => fileRef.current?.click()} className="text-xs font-semibold text-brand">Change Photo</button>
+            <button 
+              onClick={() => fileRef.current?.click()} 
+              disabled={uploadingAvatar}
+              className="text-xs font-semibold text-brand disabled:opacity-50"
+            >
+              {uploadingAvatar ? "Uploading..." : "Change Photo"}
+            </button>
             <input type="file" accept="image/*" ref={fileRef} onChange={handleAvatarChange} className="hidden" />
           </div>
 
@@ -154,11 +243,11 @@ export default function SettingsPage() {
             <div className={`w-11 h-6 rounded-full transition-colors flex items-center px-1 ${isBusiness ? 'bg-brand' : 'bg-border'}`}>
               <div className={`w-4 h-4 rounded-full bg-white transition-transform ${isBusiness ? 'translate-x-5' : 'translate-x-0'}`} />
             </div>
-            <input
-              type="checkbox"
+            <input 
+              type="checkbox" 
               checked={isBusiness}
               onChange={(e) => setIsBusiness(e.target.checked)}
-              className="hidden"
+              className="hidden" 
             />
           </label>
 
@@ -173,8 +262,85 @@ export default function SettingsPage() {
           </button>
         </section>
 
+        {isBusiness && (
+          <>
+            <div className="h-px bg-border w-full" />
+            <section className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Store size={18} className="text-brand" />
+                <h2 className="text-sm font-bold text-muted">Business Info</h2>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-muted ml-1">Category</label>
+                <select
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : "")}
+                  className="bg-surface border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-brand"
+                >
+                  <option value="">Select a category</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-muted ml-1">Contact Phone</label>
+                <input
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  placeholder="+255..."
+                  className="bg-surface border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-brand"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-muted ml-1">WhatsApp Number</label>
+                <input
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                  placeholder="+255..."
+                  className="bg-surface border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-brand"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-muted ml-1">Contact Email</label>
+                <input
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  className="bg-surface border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-brand"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-muted ml-1">Address</label>
+                <input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Street, City"
+                  className="bg-surface border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-brand"
+                />
+              </div>
+
+              {businessMsg && <p className="text-xs text-brand font-semibold text-center">{businessMsg}</p>}
+
+              <button
+                onClick={handleSaveBusiness}
+                disabled={savingBusiness}
+                className="flex items-center justify-center gap-2 bg-brand text-pill font-bold rounded-xl py-3 text-sm mt-2 disabled:opacity-50"
+              >
+                {savingBusiness ? "Saving..." : <><Check size={16} /> Save Business Info</>}
+              </button>
+            </section>
+          </>
+        )}
+
         <div className="h-px bg-border w-full" />
 
+        {/* Password Settings */}
         <section className="flex flex-col gap-4">
           <div className="flex items-center gap-2 mb-1">
             <KeyRound size={18} className="text-brand" />
@@ -190,7 +356,7 @@ export default function SettingsPage() {
               className="bg-surface border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-brand"
             />
           </div>
-
+          
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted ml-1">New Password</label>
             <input

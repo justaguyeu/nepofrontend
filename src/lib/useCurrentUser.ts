@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "./api";
 import { setCachedUsername } from "./auth";
 import type { UserProfile } from "./types";
@@ -10,10 +10,8 @@ export function useCurrentUser() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUser = useCallback(() => {
+  useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     api
       .me()
       .then((profile) => {
@@ -32,24 +30,11 @@ export function useCurrentUser() {
     };
   }, []);
 
-  useEffect(() => {
-    const cancel = fetchUser();
-    return cancel;
-  }, [fetchUser]);
-
-  // mutate(updated) -> set user directly, no refetch (e.g. after a successful save)
-  // mutate()        -> refetch the user from the server
-  const mutate = useCallback(
-    (updated?: UserProfile) => {
-      if (updated) {
-        setUser(updated);
-        setCachedUsername(updated.username);
-      } else {
-        fetchUser();
-      }
-    },
-    [fetchUser]
-  );
+  /** Lets callers optimistically update the cached profile after a PATCH. */
+  function mutate(profile: UserProfile) {
+    setUser(profile);
+    setCachedUsername(profile.username);
+  }
 
   return { user, loading, error, mutate };
 }

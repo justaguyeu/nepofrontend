@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Clapperboard } from "lucide-react";
 import ReelCard from "@/components/ReelCard";
+import BottomNav from "@/components/BottomNav";
 import { api } from "@/lib/api";
 import type { Reel } from "@/lib/types";
 
@@ -22,6 +23,7 @@ export default function ReelsPage() {
     return (
       <main className="h-svh w-full flex items-center justify-center bg-black text-white text-sm">
         {error || "Loading reels..."}
+        <BottomNav />
       </main>
     );
   }
@@ -36,6 +38,7 @@ export default function ReelsPage() {
         <Link href="/create" className="text-sm font-semibold text-brand mt-1">
           Create a reel
         </Link>
+        <BottomNav />
       </main>
     );
   }
@@ -45,6 +48,7 @@ export default function ReelsPage() {
       {reels.map((reel) => (
         <ReelCard key={reel.id} reel={reel} />
       ))}
+      <BottomNav />
     </main>
   );
 }

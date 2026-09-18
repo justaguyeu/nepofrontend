@@ -102,13 +102,22 @@ export interface Comment {
   created_at: string;
 }
 
+export interface BusinessCategory {
+  id: number;
+  name: string;
+  icon: string;
+}
+
 export interface BusinessProfile {
   id: string;
   user: UserProfile;
-  category: { id: number; name: string; icon: string } | null;
+  category: BusinessCategory | null;
   contact_phone: string;
   contact_email: string;
   whatsapp_number: string;
   address: string;
   map_link: string;
+  latitude: number | null;
+  longitude: number | null;
+  opening_hours: Record<string, string>;
 }

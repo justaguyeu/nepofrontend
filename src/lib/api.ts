@@ -4,11 +4,11 @@
  * (defaults to http://localhost:8000/api).
  */
 import type {
-  Comment, Post, Reel, Story, UserProfile,
+  BusinessCategory, BusinessProfile, Comment, Post, Reel, Story, UserProfile, UserSummary,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://nepobackend.onrender.com/api";
-// http://localhost:8000/api
+
 interface Paginated<T> {
   results: T[];
   next: string | null;
@@ -90,8 +90,35 @@ export const api = {
     apiFetch<{ detail: string }>("/users/change_password/", { method: "POST", body: JSON.stringify(payload) }),
   profile: (username: string) => apiFetch<UserProfile>(`/users/${username}/`),
 
+  businessCategories: () => apiList<BusinessCategory>("/business-categories/"),
+  /** Returns null (not an error) when this user has no business profile yet. */
+  business: async (username: string): Promise<BusinessProfile | null> => {
+    try {
+      return await apiFetch<BusinessProfile>(`/businesses/${username}/`);
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith("API 404")) return null;
+      throw err;
+    }
+  },
+  saveBusinessProfile: (
+    username: string,
+    exists: boolean,
+    payload: {
+      category_id?: number;
+      contact_phone?: string;
+      contact_email?: string;
+      whatsapp_number?: string;
+      address?: string;
+      map_link?: string;
+    }
+  ) =>
+    exists
+      ? apiFetch<BusinessProfile>(`/businesses/${username}/`, { method: "PATCH", body: JSON.stringify(payload) })
+      : apiFetch<BusinessProfile>("/businesses/", { method: "POST", body: JSON.stringify(payload) }),
+
   feed: () => apiList<Post>("/posts/feed/"),
   explore: () => apiList<Post>("/posts/explore/"),
+  post: (id: string) => apiFetch<Post>(`/posts/${id}/`),
   postsByUser: (username: string) => apiList<Post>(`/posts/?username=${encodeURIComponent(username)}`),
   createPost: (payload: {
     caption?: string;
@@ -117,11 +144,21 @@ export const api = {
 
   reelsDiscover: () => apiList<Reel>("/reels/discover/"),
   reelsByUser: (username: string) => apiList<Reel>(`/reels/?username=${encodeURIComponent(username)}`),
+  reel: (id: string) => apiFetch<Reel>(`/reels/${id}/`),
   createReel: (payload: { video_url: string; thumbnail_url?: string; caption?: string; audio_title?: string }) =>
     apiFetch<Reel>("/reels/", { method: "POST", body: JSON.stringify(payload) }),
   likeReel: (id: string) =>
     apiFetch<{ liked: boolean; like_count: number }>(`/reels/${id}/like/`, { method: "POST" }),
   viewReel: (id: string) => apiFetch(`/reels/${id}/view/`, { method: "POST" }),
+  reelComments: (reelId: string) =>
+    apiList<{ id: string; reel: string; author: UserSummary; text: string; created_at: string }>(
+      `/reel-comments/?reel=${reelId}`
+    ),
+  addReelComment: (reelId: string, text: string) =>
+    apiFetch<{ id: string; reel: string; author: UserSummary; text: string; created_at: string }>(
+      "/reel-comments/",
+      { method: "POST", body: JSON.stringify({ reel: reelId, text }) }
+    ),
 
   follow: (target_username: string) =>
     apiFetch<{ following?: boolean; status?: string }>("/follow/", {
@@ -135,6 +172,26 @@ export const api = {
     is_read: boolean;
     created_at: string;
   }>("/notifications/"),
+  /** Finds an existing 1:1 conversation with this user or creates a new one. */
+  startConversation: async (username: string) => {
+    const profile = await apiFetch<UserProfile>(`/users/${username}/`);
+    const existing = await api.conversations();
+    const match = existing.find(
+      (c) => !c.is_group && c.participants.some((p) => p.username === username)
+    );
+    if (match) return match;
+    return apiFetch<{
+      id: string;
+      participants: { id: string; username: string; avatar_url: string }[];
+      is_group: boolean;
+      group_name: string;
+      group_avatar_url: string;
+      last_message: { text: string; created_at: string; sender: { username: string } } | null;
+    }>("/conversations/", {
+      method: "POST",
+      body: JSON.stringify({ participant_ids: [profile.id] }),
+    });
+  },
   conversations: () => apiList<{
     id: string;
     participants: { id: string; username: string; avatar_url: string }[];
@@ -156,6 +213,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ kind: "text", text }),
     }),
+
+  trendingHashtags: () =>
+    apiFetch<{ id: number; name: string; post_count: number }[]>("/hashtags/trending/"),
+  hashtagPosts: (name: string) => apiList<Post>(`/hashtags/${encodeURIComponent(name)}/posts/`),
 
   uploadMedia: (file: File, folder = "posts") => {
     const form = new FormData();

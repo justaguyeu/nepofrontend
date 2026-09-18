@@ -3,13 +3,13 @@
 import { use, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, ImagePlus, Play, Share2 } from "lucide-react";
+import { ArrowLeft, ImagePlus, Mail, MapPin, Phone, Play, Share2, Store } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import ProfileHeader, { ProfileTabs } from "@/components/ProfileHeader";
 import { api } from "@/lib/api";
 import { getCachedUsername } from "@/lib/auth";
 import { formatCount } from "@/lib/utils";
-import type { Post, Reel, UserProfile } from "@/lib/types";
+import type { BusinessProfile, Post, Reel, UserProfile } from "@/lib/types";
 
 export default function ProfilePage({
   params,
@@ -19,6 +19,7 @@ export default function ProfilePage({
   const { username } = use(params);
   const [tab, setTab] = useState<"grid" | "reels" | "tagged">("grid");
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [reels, setReels] = useState<Reel[]>([]);
   const [error, setError] = useState("");
@@ -28,7 +29,10 @@ export default function ProfilePage({
     setIsMe(getCachedUsername() === username);
     api
       .profile(username)
-      .then(setProfile)
+      .then((p) => {
+        setProfile(p);
+        if (p.is_business) api.business(username).then(setBusiness).catch(() => {});
+      })
       .catch(() => setError("This profile couldn't be found."));
     api.postsByUser(username).then(setPosts).catch(() => {});
     api.reelsByUser(username).then(setReels).catch(() => {});
@@ -55,6 +59,43 @@ export default function ProfilePage({
       {profile && (
         <>
           <ProfileHeader profile={profile} isMe={isMe} />
+
+          {profile.is_business && business && (
+            <div className="mx-4 mb-4 bg-surface border border-border rounded-2xl px-4 py-3.5 flex flex-col gap-2.5">
+              <div className="flex items-center gap-2">
+                <Store size={15} className="text-brand" />
+                <span className="text-sm font-bold">
+                  {business.category?.name ?? "Business"}
+                </span>
+              </div>
+              {business.address && (
+                <p className="flex items-center gap-2 text-xs text-muted">
+                  <MapPin size={13} className="shrink-0" /> {business.address}
+                </p>
+              )}
+              {business.contact_phone && (
+                <a href={`tel:${business.contact_phone}`} className="flex items-center gap-2 text-xs text-muted">
+                  <Phone size={13} className="shrink-0" /> {business.contact_phone}
+                </a>
+              )}
+              {business.contact_email && (
+                <a href={`mailto:${business.contact_email}`} className="flex items-center gap-2 text-xs text-muted">
+                  <Mail size={13} className="shrink-0" /> {business.contact_email}
+                </a>
+              )}
+              {business.opening_hours && Object.keys(business.opening_hours).length > 0 && (
+                <div className="text-xs text-muted flex flex-col gap-0.5 pt-1 border-t border-border mt-0.5">
+                  {Object.entries(business.opening_hours).map(([day, hours]) => (
+                    <div key={day} className="flex justify-between">
+                      <span className="capitalize">{day.replace("_", "-")}</span>
+                      <span>{hours}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <ProfileTabs active={tab} onChange={setTab} />
 
           {tab === "grid" && (
@@ -98,12 +139,12 @@ export default function ProfilePage({
             ) : (
               <div className="grid grid-cols-3 gap-0.5 mt-0.5">
                 {reels.map((reel) => (
-                  <div key={reel.id} className="relative aspect-3/4 bg-border">
+                  <Link key={reel.id} href={`/reel/${reel.id}`} className="relative aspect-3/4 bg-border block">
                     {reel.thumbnail_url && (
                       <Image src={reel.thumbnail_url} alt="" fill className="object-cover" unoptimized />
                     )}
                     <Play size={14} className="absolute top-1.5 left-1.5 text-white fill-white" />
-                  </div>
+                  </Link>
                 ))}
               </div>
             )

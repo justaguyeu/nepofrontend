@@ -112,7 +112,7 @@ export default function StoryViewerPage() {
           
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full overflow-hidden bg-border border border-white/20">
+              <div className="h-8 w-8 rounded-full overflow-hidden relative bg-border border border-white/20">
                 <Image src={avatarUrl(currentStory.author)} alt={currentStory.author.username} fill className="object-cover" unoptimized />
               </div>
               <span className="font-semibold text-sm shadow-black drop-shadow-md">{currentStory.author.username}</span>
