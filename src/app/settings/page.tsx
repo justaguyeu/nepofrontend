@@ -4,22 +4,28 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, LogOut, Check, Camera, Store, KeyRound, User as UserIcon } from "lucide-react";
-import { clearSession } from "@/lib/auth";
+import { ArrowLeft, LogOut, Check, Camera, Store, KeyRound, FileText, User as UserIcon } from "lucide-react";
+import { clearSession, setSession } from "@/lib/auth";
 import { useCurrentUser } from "@/lib/useCurrentUser";
-import { api } from "@/lib/api";
+import { api, errorMessage } from "@/lib/api";
 import { avatarUrl } from "@/lib/utils";
-import type { BusinessCategory } from "@/lib/types";
+import type { BusinessCategory, UserProfile } from "@/lib/types";
 
 export default function SettingsPage() {
-  const router = useRouter();
   const { user, mutate } = useCurrentUser();
+  if (!user) return <div className="p-8 text-center text-muted">Loading...</div>;
+  // Mounted only once the profile has loaded, so form fields start from real values.
+  return <SettingsForm user={user} mutate={mutate} />;
+}
+
+function SettingsForm({ user, mutate }: { user: UserProfile; mutate: (profile: UserProfile) => void }) {
+  const router = useRouter();
 
   // Profile form state
-  const [fullName, setFullName] = useState("");
-  const [bio, setBio] = useState("");
-  const [isBusiness, setIsBusiness] = useState(false);
-  const [avatar, setAvatar] = useState<string | null>(null);
+  const [fullName, setFullName] = useState(user.full_name || "");
+  const [bio, setBio] = useState(user.bio || "");
+  const [isBusiness, setIsBusiness] = useState(user.is_business);
+  const [avatar, setAvatar] = useState<string | null>(avatarUrl(user));
 
   // Business form state
   const [categories, setCategories] = useState<BusinessCategory[]>([]);
@@ -44,30 +50,24 @@ export default function SettingsPage() {
   const [passwordMsg, setPasswordMsg] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Load business details whenever the Professional toggle is on (including
+  // when it's switched on in this form, before the profile is saved).
   useEffect(() => {
-    if (user) {
-      setFullName(user.full_name || "");
-      setBio(user.bio || "");
-      setIsBusiness(user.is_business);
-      setAvatar(avatarUrl(user));
-      if (user.is_business) {
-        api.businessCategories().then(setCategories).catch(() => {});
-        api.business(user.username).then((b) => {
-          if (b) {
-            setBusinessExists(true);
-            setCategoryId(b.category?.id ?? "");
-            setContactPhone(b.contact_phone);
-            setContactEmail(b.contact_email);
-            setWhatsapp(b.whatsapp_number);
-            setAddress(b.address);
-          }
-        }).catch(() => {});
+    if (!isBusiness) return;
+    api.businessCategories().then(setCategories).catch(() => {});
+    api.business(user.username).then((b) => {
+      if (b) {
+        setBusinessExists(true);
+        setCategoryId(b.category?.id ?? "");
+        setContactPhone(b.contact_phone);
+        setContactEmail(b.contact_email);
+        setWhatsapp(b.whatsapp_number);
+        setAddress(b.address);
       }
-    }
-  }, [user]);
+    }).catch(() => {});
+  }, [isBusiness, user.username]);
 
   async function handleSaveBusiness() {
-    if (!user) return;
     setSavingBusiness(true);
     setBusinessMsg("");
     try {
@@ -81,14 +81,16 @@ export default function SettingsPage() {
       setBusinessExists(true);
       setBusinessMsg("Business info saved!");
       setTimeout(() => setBusinessMsg(""), 3000);
-    } catch {
-      setBusinessMsg("Failed to save business info.");
+    } catch (err) {
+      setBusinessMsg(errorMessage(err, "Failed to save business info."));
     } finally {
       setSavingBusiness(false);
     }
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    // Revoke the refresh token on the server; sign out locally even if that fails.
+    await api.logout().catch(() => {});
     clearSession();
     router.push("/login");
     router.refresh();
@@ -111,8 +113,8 @@ export default function SettingsPage() {
       URL.revokeObjectURL(localPreview);
       setProfileMsg("Profile picture updated!");
       setTimeout(() => setProfileMsg(""), 3000);
-    } catch {
-      setProfileMsg("Failed to upload photo. Please try again.");
+    } catch (err) {
+      setProfileMsg(errorMessage(err, "Failed to upload photo. Please try again."));
       // Revert to previous avatar on failure
       setAvatar(user ? avatarUrl(user) : null);
       URL.revokeObjectURL(localPreview);
@@ -135,8 +137,8 @@ export default function SettingsPage() {
       mutate(updated);
       setProfileMsg("Profile updated successfully!");
       setTimeout(() => setProfileMsg(""), 3000);
-    } catch {
-      setProfileMsg("Failed to update profile.");
+    } catch (err) {
+      setProfileMsg(errorMessage(err, "Failed to update profile."));
     } finally {
       setSavingProfile(false);
     }
@@ -147,19 +149,19 @@ export default function SettingsPage() {
     setSavingPassword(true);
     setPasswordMsg("");
     try {
-      await api.changePassword({ old_password: oldPassword, new_password: newPassword });
-      setPasswordMsg("Password changed successfully!");
+      const res = await api.changePassword({ old_password: oldPassword, new_password: newPassword });
+      // The change revoked every existing session; keep this device signed in.
+      setSession(res.access, res.refresh, user.username);
+      setPasswordMsg("Password changed. Other devices have been signed out.");
       setOldPassword("");
       setNewPassword("");
       setTimeout(() => setPasswordMsg(""), 3000);
     } catch (err) {
-      setPasswordMsg(err instanceof Error ? err.message : "Failed to change password.");
+      setPasswordMsg(errorMessage(err, "Failed to change password."));
     } finally {
       setSavingPassword(false);
     }
   }
-
-  if (!user) return <div className="p-8 text-center text-muted">Loading...</div>;
 
   return (
     <main className="flex-1 max-w-md mx-auto w-full pb-12">
@@ -379,6 +381,10 @@ export default function SettingsPage() {
         </section>
 
         <div className="h-px bg-border w-full" />
+
+        <Link href="/terms" className="flex items-center gap-2 text-sm font-semibold text-muted">
+          <FileText size={16} /> Terms &amp; Conditions
+        </Link>
 
         <button
           onClick={handleLogout}

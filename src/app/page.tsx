@@ -7,21 +7,20 @@ import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
 import StoriesRow from "@/components/StoriesRow";
 import PostCard from "@/components/PostCard";
+import LoadMoreButton from "@/components/LoadMoreButton";
 import { api } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
-import type { Post, Story } from "@/lib/types";
+import { usePagedList } from "@/lib/usePagedList";
+import type { Story } from "@/lib/types";
 
 export default function HomePage() {
   const { user } = useCurrentUser();
-  const [posts, setPosts] = useState<Post[] | null>(null);
+  const feed = usePagedList(api.feed);
+  const posts = feed.items;
   const [stories, setStories] = useState<Story[]>([]);
-  const [error, setError] = useState("");
+  const error = feed.error ? "Couldn't reach the Nepo backend. Is it running?" : "";
 
   useEffect(() => {
-    api
-      .feed()
-      .then(setPosts)
-      .catch(() => setError("Couldn't reach the Nepo backend. Is it running?"));
     api.storyFeed().then(setStories).catch(() => {});
   }, []);
 
@@ -63,8 +62,9 @@ export default function HomePage() {
         )}
 
         {posts?.map((post) => (
-          <PostCard key={post.id} post={post} />
+          <PostCard key={post.id} post={post} onDeleted={feed.remove} />
         ))}
+        {feed.hasMore && <LoadMoreButton onClick={feed.loadMore} loading={feed.loadingMore} />}
       </div>
       <BottomNav />
     </main>

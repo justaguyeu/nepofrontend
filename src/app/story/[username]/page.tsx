@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import { X } from "lucide-react";
@@ -39,6 +39,14 @@ export default function StoryViewerPage() {
 
   const currentStory = stories[currentIndex];
 
+  const handleNext = useCallback(() => {
+    if (currentIndex < stories.length - 1) {
+      setCurrentIndex((i) => i + 1);
+    } else {
+      router.push("/"); // close when last story finishes
+    }
+  }, [currentIndex, stories.length, router]);
+
   // Auto-advance logic
   useEffect(() => {
     if (!currentStory) return;
@@ -53,15 +61,7 @@ export default function StoryViewerPage() {
       return () => clearTimeout(timer);
     }
     // For video, we rely on the video onEnded event.
-  }, [currentIndex, currentStory]);
-
-  function handleNext() {
-    if (currentIndex < stories.length - 1) {
-      setCurrentIndex((i) => i + 1);
-    } else {
-      router.push("/"); // close when last story finishes
-    }
-  }
+  }, [currentStory, handleNext]);
 
   function handlePrev() {
     if (currentIndex > 0) {
@@ -118,7 +118,7 @@ export default function StoryViewerPage() {
               <span className="font-semibold text-sm shadow-black drop-shadow-md">{currentStory.author.username}</span>
             </div>
             
-            <button onClick={() => router.push("/")} className="p-1">
+            <button onClick={() => router.push("/")} aria-label="Close story" className="p-1">
               <X size={24} className="drop-shadow-md" />
             </button>
           </div>

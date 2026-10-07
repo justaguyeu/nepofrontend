@@ -7,14 +7,14 @@ import { ArrowLeft, MessageCircle } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { api } from "@/lib/api";
 import { avatarUrl, timeAgo } from "@/lib/utils";
-import { getCachedUsername } from "@/lib/auth";
+import { useCachedUsername } from "@/lib/useCurrentUser";
 
 type Conversation = Awaited<ReturnType<typeof api.conversations>>[number];
 
 export default function MessagesPage() {
   const [threads, setThreads] = useState<Conversation[] | null>(null);
   const [error, setError] = useState("");
-  const myUsername = getCachedUsername();
+  const myUsername = useCachedUsername();
 
   useEffect(() => {
     api

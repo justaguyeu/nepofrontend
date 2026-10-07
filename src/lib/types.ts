@@ -23,6 +23,8 @@ export interface UserProfile extends UserSummary {
   posts_count: number;
   highlights: Highlight[];
   is_following: boolean;
+  /** "pending" = follow request sent to a private account, not yet accepted. */
+  follow_status: "accepted" | "pending" | "none";
 }
 
 export interface PostMedia {
@@ -88,6 +90,7 @@ export interface Reel {
   like_count: number;
   comment_count: number;
   is_liked: boolean;
+  is_following_author: boolean;
   created_at: string;
 }
 
@@ -98,7 +101,28 @@ export interface Comment {
   parent: string | null;
   text: string;
   like_count: number;
+  is_liked: boolean;
   replies: Comment[];
+  created_at: string;
+}
+
+export interface ReelComment {
+  id: string;
+  reel: string;
+  author: UserSummary;
+  text: string;
+  created_at: string;
+}
+
+export interface Notification {
+  id: string;
+  actor: UserSummary;
+  notification_type: "like" | "comment" | "follow" | "follow_request" | "mention" | "tag";
+  /** Ids of the post/reel/comment the notification is about, when there is one. */
+  post: string | null;
+  reel: string | null;
+  comment: string | null;
+  is_read: boolean;
   created_at: string;
 }
 

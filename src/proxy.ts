@@ -1,18 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/signup"];
+/** Only for signed-out visitors; signed-in people are sent to the feed. */
+const AUTH_PATHS = ["/login", "/signup"];
+/** Open to everyone, signed in or not (people must be able to read the Terms before signing up). */
+const OPEN_PATHS = ["/terms"];
+/** Set by src/lib/auth.ts (a marker, not a token). */
+const SESSION_COOKIE = "nepo_session";
+
+const matches = (pathname: string, paths: string[]) =>
+  paths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get("nepo_access_token")?.value;
-  const isPublicPath = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  if (matches(pathname, OPEN_PATHS)) return NextResponse.next();
 
-  if (!token && !isPublicPath) {
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
+  const signedIn = request.cookies.get(SESSION_COOKIE)?.value === "1";
+  const isAuthPath = matches(pathname, AUTH_PATHS);
+
+  if (!signedIn && !isAuthPath) {
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (token && isPublicPath) {
+  if (signedIn && isAuthPath) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 

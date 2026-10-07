@@ -4,32 +4,56 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  Bookmark,
   Heart,
   MessageCircle,
   MoreHorizontal,
-  Play,
   Send,
   MapPin,
+  Trash2,
 } from "lucide-react";
 import { Post } from "@/lib/types";
 import { api } from "@/lib/api";
-import { avatarUrl, formatCount as fmtCount, timeAgo } from "@/lib/utils";
+import { useLikeToggle } from "@/lib/useLikeToggle";
+import { useCachedUsername } from "@/lib/useCurrentUser";
+import { avatarUrl, formatCount as fmtCount, shareLink, timeAgo } from "@/lib/utils";
+import MediaView from "./MediaView";
 
-export default function PostCard({ post }: { post: Post }) {
-  const [liked, setLiked] = useState(post.is_liked);
-  const [likeCount, setLikeCount] = useState(post.like_count);
+export default function PostCard({ post, onDeleted }: { post: Post; onDeleted?: (id: string) => void }) {
+  const like = useLikeToggle(post.is_liked, post.like_count, () => api.likePost(post.id));
+  const [saved, setSaved] = useState(post.is_saved);
   const [slide, setSlide] = useState(0);
   const [expanded, setExpanded] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [toast, setToast] = useState("");
+  const myUsername = useCachedUsername();
+  const isMine = myUsername === post.author.username;
 
-  const toggleLike = () => {
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setLikeCount((c) => (wasLiked ? c - 1 : c + 1));
-    api.likePost(post.id).catch(() => {
-      setLiked(wasLiked);
-      setLikeCount((c) => (wasLiked ? c + 1 : c - 1));
-    });
-  };
+  function flash(message: string | null) {
+    if (!message) return;
+    setToast(message);
+    setTimeout(() => setToast(""), 2000);
+  }
+
+  function toggleSave() {
+    const wasSaved = saved;
+    setSaved(!wasSaved);
+    api
+      .savePost(post.id)
+      .then((res) => setSaved(res.saved))
+      .catch(() => setSaved(wasSaved));
+  }
+
+  async function handleDelete() {
+    setMenuOpen(false);
+    if (!window.confirm("Delete this post? This can't be undone.")) return;
+    try {
+      await api.deletePost(post.id);
+      onDeleted?.(post.id);
+    } catch {
+      flash("Couldn't delete the post");
+    }
+  }
 
   const media = post.media[slide];
 
@@ -40,7 +64,7 @@ export default function PostCard({ post }: { post: Post }) {
     : post.caption;
 
   return (
-    <article className="bg-surface rounded-3xl mx-4 mb-4 overflow-hidden card-shadow border border-border">
+    <article className="relative bg-surface rounded-3xl mx-4 mb-4 overflow-hidden card-shadow border border-border">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <Link href={`/profile/${post.author.username}`} className="flex items-center gap-3">
@@ -67,9 +91,25 @@ export default function PostCard({ post }: { post: Post }) {
             </p>
           </div>
         </Link>
-        <button aria-label="More options" className="text-muted p-1 rounded-full hover:bg-border transition-colors">
-          <MoreHorizontal size={18} />
-        </button>
+        {isMine && (
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label="More options"
+              aria-expanded={menuOpen}
+              className="text-muted p-1 rounded-full hover:bg-border transition-colors"
+            >
+              <MoreHorizontal size={18} />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-8 z-10 bg-surface border border-border rounded-xl card-shadow py-1 min-w-[140px]">
+                <button onClick={handleDelete} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-border">
+                  <Trash2 size={14} /> Delete post
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Caption (above media like reference) */}
@@ -91,14 +131,7 @@ export default function PostCard({ post }: { post: Post }) {
       {media && (
         <div className="px-4">
           <div className="relative w-full aspect-[4/3.5] bg-border overflow-hidden rounded-2xl">
-            <Image src={media.file_url} alt="" fill className="object-cover" unoptimized />
-            {media.media_type === "video" && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="h-14 w-14 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
-                  <Play size={22} className="text-white fill-white ml-0.5" />
-                </span>
-              </div>
-            )}
+            <MediaView key={media.id} url={media.file_url} type={media.media_type} />
             {/* carousel dots */}
             {post.media.length > 1 && (
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
@@ -114,12 +147,6 @@ export default function PostCard({ post }: { post: Post }) {
                 ))}
               </div>
             )}
-            {/* volume icon (bottom right) */}
-            {media.media_type === "video" && (
-              <button className="absolute bottom-3 right-3 h-7 w-7 rounded-full bg-black/30 backdrop-blur flex items-center justify-center text-white">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
-              </button>
-            )}
           </div>
         </div>
       )}
@@ -129,29 +156,34 @@ export default function PostCard({ post }: { post: Post }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-5">
             {/* Like */}
-            <button onClick={toggleLike} aria-label="Like" className="flex items-center gap-1.5 text-foreground/80">
+            <button onClick={like.toggle} aria-label={like.liked ? "Unlike" : "Like"} aria-pressed={like.liked} className="flex items-center gap-1.5 text-foreground/80">
               <Heart
                 size={18}
-                className={liked ? "fill-red-500 text-red-500" : "text-foreground"}
+                className={like.liked ? "fill-red-500 text-red-500" : "text-foreground"}
               />
               {!post.like_count_hidden && (
-                <span className="text-[13px] font-semibold">{fmtCount(likeCount)}</span>
+                <span className="text-[13px] font-semibold">{fmtCount(like.count)}</span>
               )}
             </button>
             {/* Comments */}
             {!post.comments_disabled && (
-              <Link href={`/post/${post.id}`} className="flex items-center gap-1.5 text-foreground/80">
+              <Link href={`/post/${post.id}`} aria-label="Comments" className="flex items-center gap-1.5 text-foreground/80">
                 <MessageCircle size={18} className="text-foreground" />
-                {post.comment_count >= 0 && (
-                  <span className="text-[13px] font-semibold">{fmtCount(post.comment_count)}</span>
-                )}
+                <span className="text-[13px] font-semibold">{fmtCount(post.comment_count)}</span>
               </Link>
             )}
+            {/* Share */}
+            <button
+              onClick={async () => flash(await shareLink(`/post/${post.id}`, `Post by ${post.author.username}`))}
+              aria-label="Share"
+              className="text-foreground/80"
+            >
+              <Send size={18} className="text-foreground" />
+            </button>
           </div>
-          {/* Share (on the right) */}
-          <button aria-label="Share" className="flex items-center gap-1.5 text-foreground/80">
-            <span className="text-[13px] font-semibold">{fmtCount(post.comment_count * 3)}</span>
-            <Send size={18} className="text-foreground" />
+          {/* Save (on the right) */}
+          <button onClick={toggleSave} aria-label={saved ? "Unsave" : "Save"} aria-pressed={saved}>
+            <Bookmark size={18} className={saved ? "fill-foreground text-foreground" : "text-foreground"} />
           </button>
         </div>
 
@@ -162,6 +194,12 @@ export default function PostCard({ post }: { post: Post }) {
           </Link>
         )}
       </div>
+
+      {toast && (
+        <p className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-pill text-white text-xs font-semibold rounded-full px-3 py-1.5">
+          {toast}
+        </p>
+      )}
     </article>
   );
 }

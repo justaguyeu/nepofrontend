@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { setSession } from "@/lib/auth";
-import { api } from "@/lib/api";
+import { api, ApiError, errorMessage } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,8 +29,12 @@ export default function LoginPage() {
       }
       router.push("/");
       router.refresh();
-    } catch {
-      setError("Couldn't sign in. Check your username and password.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.status === 401
+          ? "Wrong username or password."
+          : errorMessage(err, "Couldn't sign in. Please try again.")
+      );
     } finally {
       setLoading(false);
     }
@@ -56,6 +60,7 @@ export default function LoginPage() {
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Username"
           autoComplete="username"
+          required
           className="bg-surface border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-brand"
         />
         <input
@@ -64,6 +69,7 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
           autoComplete="current-password"
+          required
           className="bg-surface border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-brand"
         />
         {error && <p className="text-xs text-red-500">{error}</p>}

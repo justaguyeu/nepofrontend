@@ -1,20 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Flame, Hash } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
+import LoadMoreButton from "@/components/LoadMoreButton";
+import MediaView from "@/components/MediaView";
 import { api } from "@/lib/api";
+import { usePagedList } from "@/lib/usePagedList";
 import { formatCount } from "@/lib/utils";
-import type { Post } from "@/lib/types";
 
 type Hashtag = { id: number; name: string; post_count: number };
 
-export default function TrendingPage() {
+function TagPosts({ name }: { name: string }) {
+  const tagPosts = usePagedList((next) => api.hashtagPosts(name, next), [name]);
+  const posts = tagPosts.items;
+
+  return (
+    <>
+      {posts === null && !tagPosts.error && (
+        <p className="text-center text-sm text-muted py-16">Loading posts...</p>
+      )}
+      {(tagPosts.error || posts?.length === 0) && (
+        <p className="text-center text-sm text-muted py-16">No posts under #{name} yet.</p>
+      )}
+      <div className="grid grid-cols-3 gap-0.5">
+        {posts?.map((post) => (
+          <Link key={post.id} href={`/post/${post.id}`} className="relative aspect-square bg-border overflow-hidden">
+            {post.media[0] && <MediaView url={post.media[0].file_url} type={post.media[0].media_type} thumbnail />}
+          </Link>
+        ))}
+      </div>
+      {tagPosts.hasMore && <LoadMoreButton onClick={tagPosts.loadMore} loading={tagPosts.loadingMore} />}
+    </>
+  );
+}
+
+export default function TrendingPage({ searchParams }: { searchParams: Promise<{ tag?: string }> }) {
+  const { tag } = use(searchParams);
   const [hashtags, setHashtags] = useState<Hashtag[] | null>(null);
-  const [active, setActive] = useState<string | null>(null);
-  const [posts, setPosts] = useState<Post[] | null>(null);
+  const [active, setActive] = useState<string | null>(tag ?? null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -23,12 +48,6 @@ export default function TrendingPage() {
       .then(setHashtags)
       .catch(() => setError("Couldn't load trending tags."));
   }, []);
-
-  function openTag(name: string) {
-    setActive(name);
-    setPosts(null);
-    api.hashtagPosts(name).then(setPosts).catch(() => setPosts([]));
-  }
 
   return (
     <main className="flex-1 pb-28 max-w-md mx-auto w-full">
@@ -42,7 +61,7 @@ export default function TrendingPage() {
             <ArrowLeft size={16} />
           </button>
         ) : (
-          <Link href="/" className="h-9 w-9 rounded-full bg-surface border border-border flex items-center justify-center">
+          <Link href="/" aria-label="Back" className="h-9 w-9 rounded-full bg-surface border border-border flex items-center justify-center">
             <ArrowLeft size={16} />
           </Link>
         )}
@@ -51,10 +70,9 @@ export default function TrendingPage() {
         </h1>
       </div>
 
-      {error && <p className="px-4 text-sm text-red-500">{error}</p>}
-
       {!active && (
         <>
+          {error && <p className="px-4 text-sm text-red-500">{error}</p>}
           {hashtags === null && !error && (
             <p className="text-center text-sm text-muted py-16">Loading trending tags...</p>
           )}
@@ -70,7 +88,7 @@ export default function TrendingPage() {
             {hashtags?.map((tag, i) => (
               <button
                 key={tag.id}
-                onClick={() => openTag(tag.name)}
+                onClick={() => setActive(tag.name)}
                 className="flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3 text-left"
               >
                 <span className="h-9 w-9 rounded-full bg-brand/10 text-brand-dark flex items-center justify-center font-black text-sm shrink-0">
@@ -86,29 +104,7 @@ export default function TrendingPage() {
         </>
       )}
 
-      {active && (
-        <>
-          {posts === null && (
-            <p className="text-center text-sm text-muted py-16">Loading posts...</p>
-          )}
-          {posts !== null && posts.length === 0 && (
-            <p className="text-center text-sm text-muted py-16">No posts under #{active} yet.</p>
-          )}
-          <div className="grid grid-cols-3 gap-0.5">
-            {posts?.map((post) => (
-              <Link
-                key={post.id}
-                href={`/post/${post.id}`}
-                className="relative aspect-square bg-border"
-              >
-                {post.media[0] && (
-                  <Image src={post.media[0].file_url} alt="" fill className="object-cover" unoptimized />
-                )}
-              </Link>
-            ))}
-          </div>
-        </>
-      )}
+      {active && <TagPosts key={active} name={active} />}
 
       <BottomNav />
     </main>

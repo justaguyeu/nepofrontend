@@ -9,7 +9,6 @@ import {
   Heart,
   Home,
   MessageCircle,
-  MoreVertical,
   Music2,
   Play,
   Send,
@@ -19,21 +18,20 @@ import {
   Clapperboard,
 } from "lucide-react";
 import { Reel } from "@/lib/types";
-import { api } from "@/lib/api";
-import { avatarUrl, formatCount as fmtCount } from "@/lib/utils";
-import { getCachedUsername } from "@/lib/auth";
+import { api, type FollowStatus } from "@/lib/api";
+import { avatarUrl, formatCount as fmtCount, shareLink } from "@/lib/utils";
+import { useLikeToggle } from "@/lib/useLikeToggle";
+import { useCachedUsername } from "@/lib/useCurrentUser";
 
 export default function ReelCard({ reel }: { reel: Reel }) {
-  const [liked, setLiked] = useState(reel.is_liked);
-  const [likeCount, setLikeCount] = useState(reel.like_count);
+  const like = useLikeToggle(reel.is_liked, reel.like_count, () => api.likeReel(reel.id));
   const [muted, setMuted] = useState(true);
-  const [following, setFollowing] = useState(false);
-  const [myUsername, setMyUsername] = useState<string | null>(null);
+  const [followStatus, setFollowStatus] = useState<FollowStatus>(reel.is_following_author ? "accepted" : "none");
+  const [followBusy, setFollowBusy] = useState(false);
+  const [toast, setToast] = useState("");
+  const myUsername = useCachedUsername();
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    setMyUsername(getCachedUsername());
-  }, []);
+  const viewCounted = useRef(false);
 
   // Intersection observer to auto-play when visible
   useEffect(() => {
@@ -43,7 +41,11 @@ export default function ReelCard({ reel }: { reel: Reel }) {
       ([entry]) => {
         if (entry.isIntersecting) {
           el.play().catch(() => {});
-          api.viewReel(reel.id).catch(() => {});
+          // One view per time the reel is loaded, not one per scroll past.
+          if (!viewCounted.current) {
+            viewCounted.current = true;
+            api.viewReel(reel.id).catch(() => {});
+          }
         } else {
           el.pause();
         }
@@ -54,20 +56,25 @@ export default function ReelCard({ reel }: { reel: Reel }) {
     return () => obs.disconnect();
   }, [reel.id]);
 
-  const handleLike = () => {
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setLikeCount((c) => (wasLiked ? c - 1 : c + 1));
-    api.likeReel(reel.id).catch(() => {
-      setLiked(wasLiked);
-      setLikeCount((c) => (wasLiked ? c + 1 : c - 1));
-    });
+  const handleFollow = () => {
+    if (followBusy) return;
+    setFollowBusy(true);
+    api
+      .follow(reel.author.username)
+      .then((res) => setFollowStatus(res.status))
+      .catch(() => {})
+      .finally(() => setFollowBusy(false));
   };
 
-  const handleFollow = () => {
-    setFollowing((f) => !f);
-    api.follow(reel.author.username).catch(() => setFollowing((f) => !f));
+  const handleShare = async () => {
+    const message = await shareLink(`/reel/${reel.id}`, `Reel by ${reel.author.username}`);
+    if (message) {
+      setToast(message);
+      setTimeout(() => setToast(""), 2000);
+    }
   };
+
+  const isMine = myUsername === reel.author.username;
 
   return (
     <section className="relative h-[calc(100svh)] w-full snap-start shrink-0 bg-black text-white overflow-hidden">
@@ -98,9 +105,9 @@ export default function ReelCard({ reel }: { reel: Reel }) {
       {/* Top bar */}
       <div className="absolute top-5 left-4 right-4 flex items-center justify-between">
         <p className="text-lg font-bold tracking-tight">Reels</p>
-        <button aria-label="Camera">
+        <Link href="/create" aria-label="Create a reel">
           <Camera size={21} />
-        </button>
+        </Link>
       </div>
 
       {/* Center play overlay (only for thumbnail) */}
@@ -115,36 +122,36 @@ export default function ReelCard({ reel }: { reel: Reel }) {
       {/* RIGHT rail */}
       <div className="absolute right-3 bottom-28 flex flex-col items-center gap-5">
         {/* Like */}
-        <button onClick={handleLike} className="flex flex-col items-center gap-1">
+        <button onClick={like.toggle} aria-label={like.liked ? "Unlike" : "Like"} aria-pressed={like.liked} className="flex flex-col items-center gap-1">
           <span className="h-11 w-11 rounded-full bg-black/30 backdrop-blur flex items-center justify-center">
-            <Heart size={21} className={liked ? "fill-red-500 text-red-500" : "text-white"} />
+            <Heart size={21} className={like.liked ? "fill-red-500 text-red-500" : "text-white"} />
           </span>
-          <span className="text-xs font-semibold">{fmtCount(likeCount)}</span>
+          <span className="text-xs font-semibold">{fmtCount(like.count)}</span>
         </button>
         {/* Comment */}
-        <Link href={`/reel/${reel.id}`} className="flex flex-col items-center gap-1">
+        <Link href={`/reel/${reel.id}`} aria-label="Comments" className="flex flex-col items-center gap-1">
           <span className="h-11 w-11 rounded-full bg-black/30 backdrop-blur flex items-center justify-center">
             <MessageCircle size={20} />
           </span>
           <span className="text-xs font-semibold">{fmtCount(reel.comment_count)}</span>
         </Link>
         {/* Share */}
-        <button className="flex flex-col items-center gap-1">
+        <button onClick={handleShare} aria-label="Share" className="flex flex-col items-center gap-1">
           <span className="h-11 w-11 rounded-full bg-black/30 backdrop-blur flex items-center justify-center">
             <Send size={18} />
           </span>
         </button>
-        {/* More */}
-        <button aria-label="More">
-          <span className="h-11 w-11 rounded-full bg-black/30 backdrop-blur flex items-center justify-center">
-            <MoreVertical size={18} />
-          </span>
-        </button>
-        {/* Spinning avatar */}
-        <div className="h-10 w-10 rounded-full overflow-hidden relative border-2 border-white mt-1">
+        {/* Author avatar */}
+        <Link href={`/profile/${reel.author.username}`} aria-label={reel.author.username} className="h-10 w-10 rounded-full overflow-hidden relative border-2 border-white mt-1">
           <Image src={avatarUrl(reel.author)} alt="" fill className="object-cover" unoptimized />
-        </div>
+        </Link>
       </div>
+
+      {toast && (
+        <p className="absolute top-16 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur text-white text-xs font-semibold rounded-full px-3 py-1.5">
+          {toast}
+        </p>
+      )}
 
       {/* Bottom info */}
       <div className="absolute left-4 right-20 bottom-24">
@@ -155,16 +162,19 @@ export default function ReelCard({ reel }: { reel: Reel }) {
             </div>
             <p className="text-sm font-bold">{reel.author.username}</p>
           </Link>
-          <button
-            onClick={handleFollow}
-            className={`px-3 h-7 rounded-full text-xs font-bold transition-all ${
-              following
-                ? "bg-white/20 border border-white/40 text-white"
-                : "bg-brand text-pill"
-            }`}
-          >
-            {following ? "Following" : "Follow"}
-          </button>
+          {!isMine && (
+            <button
+              onClick={handleFollow}
+              disabled={followBusy}
+              className={`px-3 h-7 rounded-full text-xs font-bold transition-all ${
+                followStatus !== "none"
+                  ? "bg-white/20 border border-white/40 text-white"
+                  : "bg-brand text-pill"
+              }`}
+            >
+              {followStatus === "accepted" ? "Following" : followStatus === "pending" ? "Requested" : "Follow"}
+            </button>
+          )}
         </div>
         {reel.caption && (
           <p className="text-sm leading-snug line-clamp-2 text-white/90">{reel.caption}</p>

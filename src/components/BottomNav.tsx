@@ -3,16 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Compass, Clapperboard, Send, CircleUserRound } from "lucide-react";
-import { getCachedUsername } from "@/lib/auth";
-import { useEffect, useState } from "react";
+import { useCachedUsername } from "@/lib/useCurrentUser";
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const [username, setUsername] = useState<string | null>(null);
-
-  useEffect(() => {
-    setUsername(getCachedUsername());
-  }, [pathname]);
+  const username = useCachedUsername();
 
   const profileHref = username ? `/profile/${username}` : "/settings";
 

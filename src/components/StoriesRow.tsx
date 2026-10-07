@@ -13,31 +13,42 @@ export default function StoriesRow({
   me: UserProfile;
   stories: Story[];
 }) {
-  const groups = Object.values(
+  const allGroups = Object.values(
     stories.reduce<Record<string, { author: Story["author"]; stories: Story[] }>>((acc, s) => {
       const key = s.author.username;
       if (!acc[key]) acc[key] = { author: s.author, stories: [] };
       acc[key].stories.push(s);
       return acc;
     }, {})
-  ).filter((g) => g.author.username !== me.username);
+  );
+  const groups = allGroups.filter((g) => g.author.username !== me.username);
+  const hasOwnStory = allGroups.length !== groups.length;
 
   return (
     <div className="flex gap-4 overflow-x-auto no-scrollbar px-4 pb-4 pt-1">
-      {/* "Me" / Add Story */}
-      <Link href="/create/story" className="flex flex-col items-center gap-1.5 shrink-0 w-[60px]">
+      {/* "Me": tapping the avatar opens your live story (if any); the + always adds one */}
+      <div className="flex flex-col items-center gap-1.5 shrink-0 w-[60px]">
         <div className="relative h-[56px] w-[56px]">
-          {/* avatar */}
-          <div className="h-full w-full rounded-full overflow-hidden border-2 border-border bg-border">
-            <Image src={avatarUrl(me)} alt={me.username} fill className="object-cover" unoptimized />
-          </div>
+          <Link
+            href={hasOwnStory ? `/story/${me.username}` : "/create/story"}
+            aria-label={hasOwnStory ? "View your story" : "Add to your story"}
+            className={`block h-full w-full rounded-full ${hasOwnStory ? "story-ring" : ""}`}
+          >
+            <div className={`relative h-full w-full rounded-full overflow-hidden border-2 ${hasOwnStory ? "border-background" : "border-border"} bg-border`}>
+              <Image src={avatarUrl(me)} alt={me.username} fill className="object-cover" unoptimized />
+            </div>
+          </Link>
           {/* green + badge */}
-          <span className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-brand border-2 border-background flex items-center justify-center shadow">
+          <Link
+            href="/create/story"
+            aria-label="Add to your story"
+            className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-brand border-2 border-background flex items-center justify-center shadow"
+          >
             <Plus size={10} strokeWidth={3.5} className="text-pill" />
-          </span>
+          </Link>
         </div>
         <span className="text-[10.5px] font-medium text-muted leading-none">Me</span>
-      </Link>
+      </div>
 
       {groups.map((g) => {
         const allViewed = g.stories.every((s) => s.is_viewed);

@@ -1,22 +1,43 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Heart, MessageCircle, MoreHorizontal, Play, Send } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Bookmark, Heart, MessageCircle, Send, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
-import { avatarUrl, formatCount as fmtCount, timeAgo } from "@/lib/utils";
+import { useLikeToggle } from "@/lib/useLikeToggle";
+import { useCachedUsername } from "@/lib/useCurrentUser";
+import { avatarUrl, formatCount as fmtCount, shareLink, timeAgo } from "@/lib/utils";
+import MediaView from "@/components/MediaView";
 import type { Comment, Post } from "@/lib/types";
 
-function CommentRow({ comment, onReply }: { comment: Comment; onReply: (username: string, parentId: string) => void }) {
+function CommentRow({
+  comment,
+  isReply = false,
+  canDelete,
+  onReply,
+  onDelete,
+}: {
+  comment: Comment;
+  isReply?: boolean;
+  canDelete: (comment: Comment) => boolean;
+  onReply: (username: string, threadId: string) => void;
+  onDelete: (comment: Comment) => void;
+}) {
+  const like = useLikeToggle(comment.is_liked, comment.like_count, () => api.likeComment(comment.id));
+  const avatarSize = isReply ? "h-6 w-6" : "h-8 w-8";
+  // Replies stay one level deep: replying to a reply continues its parent's thread.
+  const threadId = comment.parent ?? comment.id;
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2.5">
       <div className="flex items-start gap-3">
-        <Link href={`/profile/${comment.author.username}`} className="h-8 w-8 rounded-full overflow-hidden relative bg-border shrink-0">
+        <Link href={`/profile/${comment.author.username}`} className={`${avatarSize} rounded-full overflow-hidden relative bg-border shrink-0`}>
           <Image src={avatarUrl(comment.author)} alt={comment.author.username} fill className="object-cover" unoptimized />
         </Link>
         <div className="flex-1 min-w-0">
-          <p className="text-sm leading-snug">
+          <p className={`${isReply ? "text-[13px]" : "text-sm"} leading-snug wrap-break-word`}>
             <Link href={`/profile/${comment.author.username}`} className="font-bold mr-1.5">
               {comment.author.username}
             </Link>
@@ -24,32 +45,36 @@ function CommentRow({ comment, onReply }: { comment: Comment; onReply: (username
           </p>
           <div className="flex items-center gap-3 mt-1 text-[11px] text-muted font-semibold">
             <span>{timeAgo(comment.created_at)}</span>
-            {comment.like_count > 0 && <span>{fmtCount(comment.like_count)} likes</span>}
-            <button onClick={() => onReply(comment.author.username, comment.id)}>Reply</button>
+            {like.count > 0 && <span>{fmtCount(like.count)} {like.count === 1 ? "like" : "likes"}</span>}
+            <button onClick={() => onReply(comment.author.username, threadId)}>Reply</button>
+            {canDelete(comment) && (
+              <button onClick={() => onDelete(comment)} aria-label="Delete comment" className="flex items-center">
+                <Trash2 size={11} />
+              </button>
+            )}
           </div>
         </div>
-        <button aria-label="Like comment" className="text-muted mt-1">
-          <Heart size={13} />
+        <button
+          onClick={like.toggle}
+          aria-label={like.liked ? "Unlike comment" : "Like comment"}
+          aria-pressed={like.liked}
+          className="mt-1"
+        >
+          <Heart size={13} className={like.liked ? "fill-red-500 text-red-500" : "text-muted"} />
         </button>
       </div>
 
       {comment.replies?.length > 0 && (
         <div className="pl-11 flex flex-col gap-2.5">
           {comment.replies.map((reply) => (
-            <div key={reply.id} className="flex items-start gap-2.5">
-              <Link href={`/profile/${reply.author.username}`} className="h-6 w-6 rounded-full overflow-hidden relative bg-border shrink-0">
-                <Image src={avatarUrl(reply.author)} alt={reply.author.username} fill className="object-cover" unoptimized />
-              </Link>
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] leading-snug">
-                  <Link href={`/profile/${reply.author.username}`} className="font-bold mr-1.5">
-                    {reply.author.username}
-                  </Link>
-                  {reply.text}
-                </p>
-                <span className="text-[11px] text-muted font-semibold">{timeAgo(reply.created_at)}</span>
-              </div>
-            </div>
+            <CommentRow
+              key={reply.id}
+              comment={reply}
+              isReply
+              canDelete={canDelete}
+              onReply={onReply}
+              onDelete={onDelete}
+            />
           ))}
         </div>
       )}
@@ -57,78 +82,90 @@ function CommentRow({ comment, onReply }: { comment: Comment; onReply: (username
   );
 }
 
-export default function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const [post, setPost] = useState<Post | null>(null);
+function PostDetail({ post }: { post: Post }) {
+  const router = useRouter();
+  const myUsername = useCachedUsername();
+  const like = useLikeToggle(post.is_liked, post.like_count, () => api.likePost(post.id));
+  const [saved, setSaved] = useState(post.is_saved);
   const [comments, setComments] = useState<Comment[] | null>(null);
-  const [error, setError] = useState("");
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
+  const [commentCount, setCommentCount] = useState(post.comment_count);
+  const [commentError, setCommentError] = useState("");
   const [draft, setDraft] = useState("");
-  const [replyTo, setReplyTo] = useState<{ username: string; parentId: string } | null>(null);
+  const [replyTo, setReplyTo] = useState<{ username: string; threadId: string } | null>(null);
   const [posting, setPosting] = useState(false);
   const [slide, setSlide] = useState(0);
-
-  function loadComments() {
-    api.comments(id).then(setComments).catch(() => {});
-  }
+  const [toast, setToast] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (post.comments_disabled) return;
     api
-      .post(id)
-      .then((p) => {
-        setPost(p);
-        setLiked(p.is_liked);
-        setLikeCount(p.like_count);
-      })
-      .catch(() => setError("This post couldn't be found."));
-    loadComments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+      .comments(post.id)
+      .then(setComments)
+      .catch(() => {
+        setComments([]);
+        setCommentError("Couldn't load comments.");
+      });
+  }, [post.id, post.comments_disabled]);
 
-  function toggleLike() {
-    if (!post) return;
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setLikeCount((c) => (wasLiked ? c - 1 : c + 1));
-    api.likePost(post.id).catch(() => {
-      setLiked(wasLiked);
-      setLikeCount((c) => (wasLiked ? c + 1 : c - 1));
-    });
+  function flash(message: string | null) {
+    if (!message) return;
+    setToast(message);
+    setTimeout(() => setToast(""), 2000);
   }
 
-  function handleReply(username: string, parentId: string) {
-    setReplyTo({ username, parentId });
+  function toggleSave() {
+    const wasSaved = saved;
+    setSaved(!wasSaved);
+    api.savePost(post.id).then((res) => setSaved(res.saved)).catch(() => setSaved(wasSaved));
+  }
+
+  function handleReply(username: string, threadId: string) {
+    setReplyTo({ username, threadId });
     setDraft(`@${username} `);
+    inputRef.current?.focus();
+  }
+
+  const isPostOwner = myUsername === post.author.username;
+  const canDelete = (c: Comment) => isPostOwner || c.author.username === myUsername;
+
+  async function handleDelete(target: Comment) {
+    if (!window.confirm("Delete this comment?")) return;
+    try {
+      await api.deleteComment(target.id);
+    } catch {
+      setCommentError("Couldn't delete that comment.");
+      return;
+    }
+    setComments((list) =>
+      (list ?? [])
+        .filter((c) => c.id !== target.id)
+        .map((c) => (c.id === target.parent ? { ...c, replies: c.replies.filter((r) => r.id !== target.id) } : c))
+    );
+    // Deleting a thread's top comment deletes its replies with it.
+    setCommentCount((n) => Math.max(0, n - 1 - (target.parent ? 0 : target.replies.length)));
   }
 
   async function handleSubmitComment(e: React.FormEvent) {
     e.preventDefault();
-    if (!draft.trim() || !post) return;
+    if (!draft.trim()) return;
     setPosting(true);
+    setCommentError("");
     try {
-      await api.addComment(post.id, draft.trim(), replyTo?.parentId);
+      const created = await api.addComment(post.id, draft.trim(), replyTo?.threadId);
+      setComments((list) => {
+        const current = list ?? [];
+        if (!created.parent) return [...current, created];
+        return current.map((c) => (c.id === created.parent ? { ...c, replies: [...c.replies, created] } : c));
+      });
+      setCommentCount((n) => n + 1);
       setDraft("");
       setReplyTo(null);
-      loadComments();
     } catch {
-      setError("Comment didn't post. Try again.");
+      setCommentError("Comment didn't post. Try again.");
     } finally {
       setPosting(false);
     }
-  }
-
-  if (error) {
-    return (
-      <main className="flex-1 max-w-md mx-auto w-full flex flex-col items-center justify-center gap-3 py-20 px-6 text-center">
-        <p className="text-sm text-muted">{error}</p>
-        <Link href="/" className="text-sm font-semibold text-brand-dark">Back to feed</Link>
-      </main>
-    );
-  }
-
-  if (!post) {
-    return <main className="flex-1 max-w-md mx-auto w-full py-20 text-center text-sm text-muted">Loading post...</main>;
   }
 
   const media = post.media[slide];
@@ -136,9 +173,13 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   return (
     <main className="flex-1 max-w-md mx-auto w-full flex flex-col min-h-svh pb-4">
       <div className="flex items-center gap-3 px-4 pt-5 pb-3 sticky top-0 bg-background z-10">
-        <Link href="/" className="h-9 w-9 rounded-full bg-surface border border-border flex items-center justify-center">
+        <button
+          onClick={() => (window.history.length > 1 ? router.back() : router.push("/"))}
+          aria-label="Back"
+          className="h-9 w-9 rounded-full bg-surface border border-border flex items-center justify-center"
+        >
           <ArrowLeft size={16} />
-        </Link>
+        </button>
         <h1 className="text-base font-bold">Post</h1>
       </div>
 
@@ -154,23 +195,13 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
               <p className="text-[11px] text-muted">{timeAgo(post.created_at)}</p>
             </div>
           </Link>
-          <button aria-label="More options" className="text-muted p-1">
-            <MoreHorizontal size={18} />
-          </button>
         </div>
 
         {/* Media */}
         {media && (
           <div className="px-4">
             <div className="relative w-full aspect-square bg-border overflow-hidden rounded-2xl">
-              <Image src={media.file_url} alt="" fill className="object-cover" unoptimized />
-              {media.media_type === "video" && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="h-14 w-14 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
-                    <Play size={22} className="text-white fill-white ml-0.5" />
-                  </span>
-                </div>
-              )}
+              <MediaView key={media.id} url={media.file_url} type={media.media_type} />
               {post.media.length > 1 && (
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
                   {post.media.map((_, i) => (
@@ -189,18 +220,28 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
 
         {/* Actions */}
         <div className="px-4 pt-3 pb-2 flex items-center gap-5">
-          <button onClick={toggleLike} className="flex items-center gap-1.5">
-            <Heart size={20} className={liked ? "fill-red-500 text-red-500" : "text-foreground"} />
-            <span className="text-[13px] font-semibold">{fmtCount(likeCount)}</span>
+          <button onClick={like.toggle} aria-label={like.liked ? "Unlike" : "Like"} aria-pressed={like.liked} className="flex items-center gap-1.5">
+            <Heart size={20} className={like.liked ? "fill-red-500 text-red-500" : "text-foreground"} />
+            {!post.like_count_hidden && <span className="text-[13px] font-semibold">{fmtCount(like.count)}</span>}
           </button>
-          <span className="flex items-center gap-1.5 text-foreground/80">
-            <MessageCircle size={20} />
-            <span className="text-[13px] font-semibold">{fmtCount(post.comment_count)}</span>
-          </span>
-          <span className="flex items-center gap-1.5 text-foreground/80 ml-auto">
+          {!post.comments_disabled && (
+            <button onClick={() => inputRef.current?.focus()} aria-label="Comment" className="flex items-center gap-1.5 text-foreground/80">
+              <MessageCircle size={20} />
+              <span className="text-[13px] font-semibold">{fmtCount(commentCount)}</span>
+            </button>
+          )}
+          <button
+            onClick={async () => flash(await shareLink(`/post/${post.id}`, `Post by ${post.author.username}`))}
+            aria-label="Share"
+            className="text-foreground/80"
+          >
             <Send size={19} />
-          </span>
+          </button>
+          <button onClick={toggleSave} aria-label={saved ? "Unsave" : "Save"} aria-pressed={saved} className="ml-auto">
+            <Bookmark size={19} className={saved ? "fill-foreground text-foreground" : "text-foreground"} />
+          </button>
         </div>
+        {toast && <p className="px-4 text-xs font-semibold text-brand-dark">{toast}</p>}
 
         {/* Caption */}
         {post.caption && (
@@ -226,41 +267,74 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
           {!post.comments_disabled && comments === null && (
             <p className="text-center text-xs text-muted py-6">Loading comments...</p>
           )}
-          {!post.comments_disabled && comments?.length === 0 && (
+          {!post.comments_disabled && comments?.length === 0 && !commentError && (
             <p className="text-center text-xs text-muted py-6">No comments yet. Be the first to say something.</p>
           )}
           {comments?.map((c) => (
-            <CommentRow key={c.id} comment={c} onReply={handleReply} />
+            <CommentRow key={c.id} comment={c} canDelete={canDelete} onReply={handleReply} onDelete={handleDelete} />
           ))}
         </div>
       </div>
 
       {!post.comments_disabled && (
-        <form onSubmit={handleSubmitComment} className="flex items-center gap-2 px-4 py-3 border-t border-border sticky bottom-0 bg-background">
-          {replyTo && (
+        <div className="sticky bottom-0 bg-background border-t border-border">
+          {commentError && <p className="px-4 pt-2 text-xs text-red-500">{commentError}</p>}
+          <form onSubmit={handleSubmitComment} className="flex items-center gap-2 px-4 py-3">
+            {replyTo && (
+              <button
+                type="button"
+                onClick={() => { setReplyTo(null); setDraft(""); }}
+                className="text-[11px] text-muted font-semibold shrink-0"
+              >
+                Cancel
+              </button>
+            )}
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              maxLength={500}
+              placeholder={replyTo ? `Replying to ${replyTo.username}...` : "Add a comment..."}
+              className="flex-1 bg-surface border border-border rounded-full px-4 py-2.5 text-sm outline-none focus:border-brand"
+            />
             <button
-              type="button"
-              onClick={() => { setReplyTo(null); setDraft(""); }}
-              className="text-[11px] text-muted font-semibold shrink-0"
+              disabled={posting || !draft.trim()}
+              className="h-10 w-10 rounded-full bg-brand text-pill flex items-center justify-center disabled:opacity-50 shrink-0"
+              aria-label="Post comment"
             >
-              Cancel
+              <Send size={16} />
             </button>
-          )}
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={replyTo ? `Replying to ${replyTo.username}...` : "Add a comment..."}
-            className="flex-1 bg-surface border border-border rounded-full px-4 py-2.5 text-sm outline-none focus:border-brand"
-          />
-          <button
-            disabled={posting || !draft.trim()}
-            className="h-10 w-10 rounded-full bg-brand text-pill flex items-center justify-center disabled:opacity-50 shrink-0"
-            aria-label="Post comment"
-          >
-            <Send size={16} />
-          </button>
-        </form>
+          </form>
+        </div>
       )}
     </main>
   );
+}
+
+export default function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [post, setPost] = useState<Post | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api
+      .post(id)
+      .then(setPost)
+      .catch(() => setError("This post couldn't be found."));
+  }, [id]);
+
+  if (error) {
+    return (
+      <main className="flex-1 max-w-md mx-auto w-full flex flex-col items-center justify-center gap-3 py-20 px-6 text-center">
+        <p className="text-sm text-muted">{error}</p>
+        <Link href="/" className="text-sm font-semibold text-brand-dark">Back to feed</Link>
+      </main>
+    );
+  }
+
+  if (!post) {
+    return <main className="flex-1 max-w-md mx-auto w-full py-20 text-center text-sm text-muted">Loading post...</main>;
+  }
+
+  return <PostDetail key={post.id} post={post} />;
 }

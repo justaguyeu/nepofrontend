@@ -10,6 +10,29 @@ export function formatCount(n: number): string {
   return `${n}`;
 }
 
+/**
+ * Shares a link to an in-app path with the native share sheet, falling
+ * back to copying it. Resolves to a short message to show the person, or
+ * null if they dismissed the share sheet.
+ */
+export async function shareLink(path: string, title: string): Promise<string | null> {
+  const url = `${window.location.origin}${path}`;
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, url });
+      return null;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return null;
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    return "Link copied";
+  } catch {
+    return "Couldn't share this link";
+  }
+}
+
 export function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const hrs = Math.floor(diff / 3600e3);

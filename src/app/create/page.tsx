@@ -21,10 +21,17 @@ export default function CreatePostPage() {
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+  const MAX_FILES = 10;
+
+  /** `append` adds to the current selection (the "+" tile) instead of replacing it. */
+  function onPickFiles(e: React.ChangeEvent<HTMLInputElement>, append = false) {
     const picked = Array.from(e.target.files ?? []);
-    setFiles(picked);
-    setPreviews(picked.map((f) => URL.createObjectURL(f)));
+    e.target.value = ""; // let the same file be picked again later
+    if (picked.length === 0) return;
+    const next = (append ? [...files, ...picked] : picked).slice(0, mode === "reel" ? 1 : MAX_FILES);
+    previews.forEach((url) => URL.revokeObjectURL(url));
+    setFiles(next);
+    setPreviews(next.map((f) => URL.createObjectURL(f)));
   }
 
   async function handlePost() {
@@ -56,7 +63,6 @@ export default function CreatePostPage() {
     }
   }
 
-  const isVideo = files[0]?.type.startsWith("video");
 
   return (
     <main className="flex-1 pb-10 max-w-md mx-auto w-full">
@@ -110,7 +116,7 @@ export default function CreatePostPage() {
             {previews.map((src, i) => (
               <div key={i} className="relative rounded-2xl overflow-hidden shrink-0 bg-border"
                 style={{ height: mode === "reel" ? "240px" : "160px", width: mode === "reel" ? "135px" : "128px" }}>
-                {isVideo ? (
+                {files[i]?.type.startsWith("video") ? (
                   <video src={src} autoPlay loop muted playsInline className="w-full h-full object-cover" />
                 ) : (
                   <Image src={src} alt="" fill className="object-cover" unoptimized />
@@ -118,7 +124,7 @@ export default function CreatePostPage() {
               </div>
             ))}
             {/* add more (post only) */}
-            {mode === "post" && (
+            {mode === "post" && files.length < MAX_FILES && (
               <label className="flex flex-col items-center justify-center h-40 w-20 rounded-2xl border-2 border-dashed border-border text-muted shrink-0 cursor-pointer">
                 <ImagePlus size={20} />
                 <input
@@ -126,7 +132,7 @@ export default function CreatePostPage() {
                   type="file"
                   accept="image/*,video/*"
                   multiple
-                  onChange={onPickFiles}
+                  onChange={(e) => onPickFiles(e, true)}
                   className="hidden"
                 />
               </label>

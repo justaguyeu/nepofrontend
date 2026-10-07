@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BadgeCheck, Globe, Grid3x3, Play, Bookmark, Settings, MessageCircle } from "lucide-react";
 import { UserProfile } from "@/lib/types";
-import { api } from "@/lib/api";
+import { api, type FollowStatus } from "@/lib/api";
 import { avatarUrl, formatCount } from "@/lib/utils";
 
 export default function ProfileHeader({
@@ -19,19 +19,39 @@ export default function ProfileHeader({
   isMe?: boolean;
 }) {
   const router = useRouter();
-  const [following, setFollowing] = useState(profile.is_following);
+  const [followStatus, setFollowStatus] = useState<FollowStatus>(profile.follow_status ?? "none");
   const [followerCount, setFollowerCount] = useState(profile.followers_count);
+  const [followBusy, setFollowBusy] = useState(false);
   const [messaging, setMessaging] = useState(false);
+
+  async function handleFollow() {
+    if (followBusy) return;
+    setFollowBusy(true);
+    try {
+      const res = await api.follow(profile.username);
+      // Only accepted follows count towards followers; a pending request doesn't.
+      if (followStatus === "accepted" && res.status !== "accepted") setFollowerCount((c) => Math.max(0, c - 1));
+      if (followStatus !== "accepted" && res.status === "accepted") setFollowerCount((c) => c + 1);
+      setFollowStatus(res.status);
+    } catch {
+      // leave the button as it was
+    } finally {
+      setFollowBusy(false);
+    }
+  }
 
   async function handleMessage() {
     setMessaging(true);
     try {
       const convo = await api.startConversation(profile.username);
       router.push(`/messages/${convo.id}`);
-    } finally {
+    } catch {
       setMessaging(false);
     }
   }
+
+  const websiteHref = profile.website && (/^https?:\/\//i.test(profile.website) ? profile.website : `https://${profile.website}`);
+  const websiteLabel = profile.website.replace(/^https?:\/\//i, "").replace(/\/$/, "");
 
   return (
     <div className="bg-surface rounded-b-3xl card-shadow overflow-hidden pt-4 pb-1 mb-4 border-b border-border">
@@ -71,22 +91,15 @@ export default function ProfileHeader({
           ) : (
             <div className="flex items-center gap-2 mt-1">
               <button
-                onClick={() => {
-                  const wasFollowing = following;
-                  setFollowing(!wasFollowing);
-                  setFollowerCount((c) => (wasFollowing ? c - 1 : c + 1));
-                  api.follow(profile.username).catch(() => {
-                    setFollowing(wasFollowing);
-                    setFollowerCount((c) => (wasFollowing ? c + 1 : c - 1));
-                  });
-                }}
-                className={`px-5 h-9 rounded-full text-[13px] font-bold transition-all ${
-                  following
+                onClick={handleFollow}
+                disabled={followBusy}
+                className={`px-5 h-9 rounded-full text-[13px] font-bold transition-all disabled:opacity-70 ${
+                  followStatus !== "none"
                     ? "bg-surface border border-border text-foreground shadow-sm"
                     : "bg-brand text-pill shadow"
                 }`}
               >
-                {following ? "Following" : "Follow"}
+                {followStatus === "accepted" ? "Following" : followStatus === "pending" ? "Requested" : "Follow"}
               </button>
               <button
                 onClick={handleMessage}
@@ -109,14 +122,14 @@ export default function ProfileHeader({
               ))}
             </p>
           )}
-          {profile.website && (
+          {websiteHref && (
             <a
-              href={`https://${profile.website}`}
+              href={websiteHref}
               className="flex items-center gap-1 text-[12px] font-semibold text-brand-dark mt-2"
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Globe size={11} /> {profile.website}
+              <Globe size={11} /> {websiteLabel}
             </a>
           )}
         </div>
@@ -141,8 +154,8 @@ export default function ProfileHeader({
         <div className="flex gap-4 overflow-x-auto no-scrollbar py-3.5">
           {profile.highlights.map((h) => (
             <div key={h.id} className="flex flex-col items-center gap-1.5 shrink-0 w-16">
-              <div className="h-14 w-14 rounded-full overflow-hidden relative border-2 border-border">
-                <Image src={h.cover_url} alt={h.title} fill className="object-cover" unoptimized />
+              <div className="h-14 w-14 rounded-full overflow-hidden relative border-2 border-border bg-border">
+                {h.cover_url && <Image src={h.cover_url} alt={h.title} fill className="object-cover" unoptimized />}
               </div>
               <span className="text-[10.5px] font-medium truncate w-full text-center">{h.title}</span>
             </div>
