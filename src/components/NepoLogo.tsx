@@ -1,27 +1,20 @@
 /**
- * Nepo's mark: a bold rounded "N" on a lime tile. The N is one stroke (up,
- * diagonal, up) with the same geometry as the mobile app's NMarkPainter and
- * the app icons (src/app/icon.svg) — keep them in sync.
+ * Nepo's app icon: the black brush "N" on a lime circle, from the official
+ * logo file ("nepo logo.pdf"). Same artwork as the mobile app (NepoArt) and
+ * src/app/icon.svg.
  */
 export default function NepoLogo({ size = 32, className = "" }: { size?: number; className?: string }) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 100 100"
+      viewBox="0 0 400.92 400.92"
       role="img"
       aria-label="Nepo"
-      className={`shrink-0 rounded-[30%] ${className}`}
+      className={`shrink-0 rounded-full ${className}`}
     >
-      <rect width="100" height="100" rx="30" fill="var(--brand)" />
-      <path
-        d="M32 70V30L68 70V30"
-        fill="none"
-        stroke="var(--pill)"
-        strokeWidth="11"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path fill="var(--brand)" d="M400.92 200.46C400.92 311.17 311.17 400.92 200.46 400.92C89.75 400.92 0 311.17 0 200.46C0 89.75 89.75 0 200.46 0C311.17 0 400.92 89.75 400.92 200.46" />
+      <path fill="#000" fillRule="evenodd" d="M349.39 322.31C335.37 326.1 316.05 321.75 302.27 317.76C251.94 303.13 224.88 267.77 215.49 224.93C206.51 246.42 196.75 267.4 187.12 284.54C180.99 295.49 170.12 309.73 156.53 299.71C145.25 291.42 149.8 267.33 150.8 254.66C154.86 203.55 164.58 101.4 95.9 88.96C83.73 86.74 72.8 87.54 60.63 88.35C54.87 88.74 57.55 88.79 51.53 87.98C62.07 79.99 77.32 77.62 90.22 77.21C167.2 74.71 178.08 166.58 178.7 224.06C178.72 225.56 178.7 227.51 178.67 229.75L178.72 229.64C191.76 202.18 203.56 176.4 215.21 148.22C222.94 129.46 245.42 138.49 241.7 155.25C226.31 224.51 242.32 282.19 313.94 309.71C324.36 313.72 340.41 317.22 349.39 322.31" />
     </svg>
   );
 }
