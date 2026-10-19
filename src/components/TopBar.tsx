@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell, Plus } from "lucide-react";
 import { api } from "@/lib/api";
+import NepoLogo from "./NepoLogo";
 
 export default function TopBar() {
   const [unread, setUnread] = useState(0);
@@ -19,9 +20,7 @@ export default function TopBar() {
     <header className="sticky top-0 z-30 flex items-center justify-between px-4 pt-5 pb-3 bg-background">
       {/* Brand */}
       <Link href="/" className="flex items-center gap-2">
-        <span className="h-8 w-8 rounded-xl bg-brand flex items-center justify-center shadow-sm">
-          <Plus size={17} strokeWidth={3} className="text-pill" />
-        </span>
+        <NepoLogo size={32} className="shadow-sm" />
         <span className="text-xl font-extrabold tracking-tight text-foreground">Nepo</span>
       </Link>
 

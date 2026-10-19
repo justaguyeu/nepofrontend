@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import NepoLogo from "@/components/NepoLogo";
 import { setSession } from "@/lib/auth";
 import { api, ApiError, errorMessage } from "@/lib/api";
 
@@ -43,9 +43,7 @@ export default function LoginPage() {
   return (
     <main className="flex-1 flex flex-col justify-center px-6 max-w-sm mx-auto w-full min-h-svh">
       <div className="flex flex-col items-center mb-8 text-center">
-        <span className="h-14 w-14 rounded-2xl bg-brand flex items-center justify-center mb-4">
-          <Plus size={26} strokeWidth={3} className="text-pill" />
-        </span>
+        <NepoLogo size={56} className="mb-4" />
         <h1 className="text-2xl font-extrabold">Nepo</h1>
         <p className="text-sm text-muted mt-2 leading-relaxed">
           The social platform for Tanzanian business people. Showcase your

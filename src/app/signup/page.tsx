@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Briefcase, CheckCircle2, ExternalLink } from "lucide-react";
+import { Briefcase, CheckCircle2, ExternalLink } from "lucide-react";
+import NepoLogo from "@/components/NepoLogo";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { setSession } from "@/lib/auth";
 import TermsContent from "@/components/TermsContent";
@@ -99,9 +100,7 @@ export default function SignupPage() {
     <main className="flex-1 flex flex-col justify-center px-6 max-w-sm mx-auto w-full min-h-svh py-10">
       {/* Logo */}
       <div className="flex flex-col items-center mb-8 text-center">
-        <span className="h-16 w-16 rounded-2xl bg-brand flex items-center justify-center mb-4 shadow-md">
-          <Plus size={28} strokeWidth={3} className="text-pill" />
-        </span>
+        <NepoLogo size={64} className="mb-4 shadow-md" />
         <h1 className="text-2xl font-extrabold tracking-tight">Join Nepo</h1>
         <p className="text-sm text-muted mt-2 leading-relaxed max-w-xs">
           Nepo is a business-first social platform. Every account represents a
