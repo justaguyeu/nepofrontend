@@ -12,8 +12,8 @@ cp .env.example .env.local     # then fill in real values
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). You'll be redirected
-to `/login` until you sign in or create an account (see the backend's
+Open [http://localhost:3000](http://localhost:3000). Signed out, you'll see
+the landing page (`src/app/welcome`); log in or create an account (see the backend's
 `seed_data` command for ready-made demo accounts — any seeded username with
 password `password123`).
 
@@ -38,14 +38,15 @@ npm run lint    # eslint
 ## Structure
 
 ```
-src/app/            routes (App Router) — home, explore, reels, trending,
-                    profile/[username], post/[id], reel/[id], messages,
-                    notifications, create, settings, login, signup
-src/components/     shared UI (PostCard, ReelCard, ProfileHeader, etc.)
+src/app/            routes (App Router) — welcome (landing page), home, explore,
+                    reels, trending, profile/[username], post/[id], reel/[id],
+                    messages, notifications, create, settings, login, signup
+src/components/     shared UI (PostCard, ReelCard, ProfileHeader, NepoLogo, etc.)
 src/lib/api.ts      typed fetch wrapper around the Django REST API
 src/lib/auth.ts     session storage (localStorage + cookie for the proxy)
-src/proxy.ts        Next 16 middleware — redirects unauthenticated visitors
-                    to /login and signed-in visitors away from /login,/signup
+src/proxy.ts        Next 16 middleware — shows signed-out visitors the landing
+                    page at /, sends them to /login elsewhere, and redirects
+                    signed-in visitors away from /login,/signup
 ```
 
 ## Notes for production

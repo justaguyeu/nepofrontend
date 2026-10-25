@@ -68,11 +68,44 @@ function refreshAccessToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
-function endSession() {
+/** Pages anyone can see signed out; never bounce people from these back to /login. */
+const OPEN_PAGES = ["/login", "/signup", "/terms", "/welcome"];
+
+export function onOpenPage(): boolean {
+  return OPEN_PAGES.some((p) => window.location.pathname.startsWith(p));
+}
+
+/** Why someone was sent back to /login; the login page explains it. */
+export type LogoutReason = "expired" | "error";
+
+let loggingOut = false;
+
+/**
+ * Signs the person out on this device and sends them to /login. Used when
+ * the session is no longer valid (a 401 the token refresh couldn't fix) and
+ * when the app crashes (see app/error.tsx). Safe to call several times at once.
+ */
+export function logoutToLogin(reason: LogoutReason) {
+  if (loggingOut) return;
+  loggingOut = true;
+  // Revoke the refresh token server-side, best effort. `keepalive` lets the
+  // request finish even though the page is about to unload.
+  const refresh = getRefreshToken();
+  if (refresh) {
+    fetch(`${API_BASE}/auth/logout/`, {
+      method: "POST",
+      keepalive: true,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh }),
+    }).catch(() => {});
+  }
   clearSession();
-  const onAuthPage = ["/login", "/signup", "/terms"].some((p) => window.location.pathname.startsWith(p));
+  if (onOpenPage()) {
+    loggingOut = false;
+    return;
+  }
   // A full page load (not a client-side push) so no signed-in state survives in memory.
-  if (!onAuthPage) window.location.replace(new URL("/login", window.location.origin).href);
+  window.location.replace(new URL(`/login?reason=${reason}`, window.location.origin).href);
 }
 
 export async function apiFetch<T>(
@@ -94,14 +127,15 @@ export async function apiFetch<T>(
 
   const token = skipAuth ? null : getAccessToken();
   let res = await send(token);
-  if (res.status === 401 && token) {
-    // Expired (or revoked) access token: try once more with a fresh one.
-    const fresh = await refreshAccessToken();
-    if (fresh) {
-      res = await send(fresh);
-    } else {
-      endSession();
-    }
+  // 401 on a signed-in request means the session is no longer valid. (Login,
+  // register and logout use skipAuth, so a wrong password never lands here.)
+  // 403 is not a session problem: the backend uses it for "not allowed", such
+  // as viewing a private account, so it's shown as a normal error instead.
+  if (res.status === 401 && !skipAuth) {
+    // Expired access token: try once more with a fresh one.
+    const fresh = token ? await refreshAccessToken() : null;
+    if (fresh) res = await send(fresh);
+    if (res.status === 401) logoutToLogin("expired");
   }
   if (!res.ok) {
     const body = await res.text();

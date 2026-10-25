@@ -5,9 +5,11 @@
   --background: #eef1f6;
   --surface: #ffffff;
   --foreground: #14171a;
-  --muted: #7a828c;
+  /* muted and brand-dark are used for small text, so they're dark enough to
+     pass WCAG AA contrast (4.5:1) — same values as the mobile app. */
+  --muted: #636b74;
   --brand: #8bd400;
-  --brand-dark: #5fa800;
+  --brand-dark: #427600;
   --pill: #0f1113;
   --border: #e7e9ec;
 }
@@ -52,4 +54,30 @@ body {
 /* card shadow */
 .card-shadow {
   box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+
+/* ---- Landing page (/welcome) ---- */
+html {
+  scroll-behavior: smooth;
+}
+
+@keyframes nepo-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes nepo-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Gently bobbing "app moment" cards on the hero photo. */
+.landing-float { animation: nepo-float 6s ease-in-out infinite; }
+.landing-float-slow { animation: nepo-float 8s ease-in-out infinite; animation-delay: -2s; }
+/* Hero content rising into place on load. */
+.landing-rise { animation: nepo-rise 0.8s cubic-bezier(.2, .7, .2, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .landing-float, .landing-float-slow, .landing-rise { animation: none; }
 }

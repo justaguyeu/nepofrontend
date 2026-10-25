@@ -267,6 +267,11 @@ export default function SignupPage() {
           Log in
         </Link>
       </p>
+      <p className="text-center text-sm mt-3">
+        <Link href="/welcome" className="text-muted underline underline-offset-4 hover:text-foreground">
+          Learn more about Nepo
+        </Link>
+      </p>
     </main>
   );
 }

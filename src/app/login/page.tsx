@@ -1,13 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import NepoLogo from "@/components/NepoLogo";
 import { setSession } from "@/lib/auth";
-import { api, ApiError, errorMessage } from "@/lib/api";
+import { api, ApiError, errorMessage, type LogoutReason } from "@/lib/api";
 
-export default function LoginPage() {
+/** Why the person was sent here (see logoutToLogin in lib/api.ts). */
+const REASONS: Record<LogoutReason, string> = {
+  expired: "Your session has ended. Please log in again.",
+  error: "Something went wrong, so we signed you out to keep your account safe. Please log in again.",
+};
+
+export default function LoginPage({ searchParams }: { searchParams: Promise<{ reason?: string }> }) {
+  const { reason } = use(searchParams);
+  const notice = reason && reason in REASONS ? REASONS[reason as LogoutReason] : null;
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -52,6 +60,12 @@ export default function LoginPage() {
         </p>
       </div>
 
+      {notice && (
+        <p role="status" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {notice}
+        </p>
+      )}
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <input
           value={username}
@@ -83,6 +97,11 @@ export default function LoginPage() {
         New to Nepo?{" "}
         <Link href="/signup" className="text-brand-dark font-semibold">
           Create an account
+        </Link>
+      </p>
+      <p className="text-center text-sm mt-3">
+        <Link href="/welcome" className="text-muted underline underline-offset-4 hover:text-foreground">
+          What is Nepo? See how it works
         </Link>
       </p>
     </main>
