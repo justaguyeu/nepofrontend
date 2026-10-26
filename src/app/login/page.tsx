@@ -13,8 +13,13 @@ const REASONS: Record<LogoutReason, string> = {
   error: "Something went wrong, so we signed you out to keep your account safe. Please log in again.",
 };
 
-export default function LoginPage({ searchParams }: { searchParams: Promise<{ reason?: string }> }) {
-  const { reason } = use(searchParams);
+/** Only same-site paths, so a crafted link can't send people to another site after login. */
+function safeNext(next?: string) {
+  return next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : "/";
+}
+
+export default function LoginPage({ searchParams }: { searchParams: Promise<{ reason?: string; next?: string }> }) {
+  const { reason, next } = use(searchParams);
   const notice = reason && reason in REASONS ? REASONS[reason as LogoutReason] : null;
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -35,7 +40,7 @@ export default function LoginPage({ searchParams }: { searchParams: Promise<{ re
       } catch {
         // non-fatal — username cache will fill in on first page that fetches it
       }
-      router.push("/");
+      router.push(safeNext(next));
       router.refresh();
     } catch (err) {
       setError(

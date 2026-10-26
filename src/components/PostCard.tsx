@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   Bookmark,
+  Flag,
   Heart,
   MessageCircle,
   MoreHorizontal,
@@ -18,6 +19,7 @@ import { useLikeToggle } from "@/lib/useLikeToggle";
 import { useCachedUsername } from "@/lib/useCurrentUser";
 import { avatarUrl, formatCount as fmtCount, shareLink, timeAgo } from "@/lib/utils";
 import MediaView from "./MediaView";
+import ReportDialog from "./ReportDialog";
 
 export default function PostCard({ post, onDeleted }: { post: Post; onDeleted?: (id: string) => void }) {
   const like = useLikeToggle(post.is_liked, post.like_count, () => api.likePost(post.id));
@@ -25,6 +27,7 @@ export default function PostCard({ post, onDeleted }: { post: Post; onDeleted?: 
   const [slide, setSlide] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const [toast, setToast] = useState("");
   const myUsername = useCachedUsername();
   const isMine = myUsername === post.author.username;
@@ -91,25 +94,32 @@ export default function PostCard({ post, onDeleted }: { post: Post; onDeleted?: 
             </p>
           </div>
         </Link>
-        {isMine && (
-          <div className="relative">
-            <button
-              onClick={() => setMenuOpen((o) => !o)}
-              aria-label="More options"
-              aria-expanded={menuOpen}
-              className="text-muted p-1 rounded-full hover:bg-border transition-colors"
-            >
-              <MoreHorizontal size={18} />
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-8 z-10 bg-surface border border-border rounded-xl card-shadow py-1 min-w-[140px]">
+        <div className="relative">
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label="More options"
+            aria-expanded={menuOpen}
+            className="text-muted p-1 rounded-full hover:bg-border transition-colors"
+          >
+            <MoreHorizontal size={18} />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-8 z-10 bg-surface border border-border rounded-xl card-shadow py-1 min-w-[140px]">
+              {isMine ? (
                 <button onClick={handleDelete} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-border">
                   <Trash2 size={14} /> Delete post
                 </button>
-              </div>
-            )}
-          </div>
-        )}
+              ) : (
+                <button
+                  onClick={() => { setMenuOpen(false); setReporting(true); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-border"
+                >
+                  <Flag size={14} /> Report post
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Caption (above media like reference) */}
@@ -194,6 +204,8 @@ export default function PostCard({ post, onDeleted }: { post: Post; onDeleted?: 
           </Link>
         )}
       </div>
+
+      {reporting && <ReportDialog targetType="post" targetId={post.id} onClose={() => setReporting(false)} />}
 
       {toast && (
         <p className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-pill text-white text-xs font-semibold rounded-full px-3 py-1.5">

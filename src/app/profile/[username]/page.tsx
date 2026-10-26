@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Heart, ImagePlus, Lock, Mail, MapPin, Phone, Play, Share2, Store } from "lucide-react";
+import { ArrowLeft, Ban, Heart, ImagePlus, Lock, Mail, MapPin, Phone, Play, Share2, Store } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import LoadMoreButton from "@/components/LoadMoreButton";
 import MediaView from "@/components/MediaView";
@@ -23,7 +23,9 @@ export default function ProfilePage({
   const [tab, setTab] = useState<"grid" | "reels" | "tagged">("grid");
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
-  const userPosts = usePagedList((next) => api.postsByUser(username, next), [username]);
+  // Bumped on block/unblock so their posts and reels are fetched again.
+  const [contentKey, setContentKey] = useState(0);
+  const userPosts = usePagedList((next) => api.postsByUser(username, next), [username, contentKey]);
   const posts = userPosts.items ?? [];
   const [reels, setReels] = useState<Reel[]>([]);
   const [error, setError] = useState("");
@@ -38,8 +40,16 @@ export default function ProfilePage({
         if (p.is_business) api.business(username).then(setBusiness).catch(() => {});
       })
       .catch(() => setError("This profile couldn't be found."));
-    api.reelsByUser(username).then(setReels).catch(() => {});
   }, [username]);
+
+  useEffect(() => {
+    api.reelsByUser(username).then(setReels).catch(() => {});
+  }, [username, contentKey]);
+
+  function handleBlockedChange(blocked: boolean) {
+    setProfile((p) => p && { ...p, is_blocked: blocked, follow_status: "none", is_following: false });
+    setContentKey((k) => k + 1);
+  }
 
   async function handleShare() {
     const message = await shareLink(`/profile/${username}`, `@${username} on Nepo`);
@@ -70,7 +80,7 @@ export default function ProfilePage({
 
       {profile && (
         <>
-          <ProfileHeader key={profile.id} profile={profile} isMe={isMe} />
+          <ProfileHeader key={profile.id} profile={profile} isMe={isMe} onBlockedChange={handleBlockedChange} />
 
           {profile.is_business && business && (
             <div className="mx-4 mb-4 bg-surface border border-border rounded-2xl px-4 py-3.5 flex flex-col gap-2.5">
@@ -108,7 +118,15 @@ export default function ProfilePage({
             </div>
           )}
 
-          {profile.is_private && !isMe && profile.follow_status !== "accepted" ? (
+          {profile.is_blocked ? (
+            <div className="flex flex-col items-center text-center gap-2 py-14 px-6 border-t border-border">
+              <Ban size={22} className="text-muted" />
+              <p className="text-sm font-semibold">You blocked @{profile.username}</p>
+              <p className="text-sm text-muted">
+                You won&apos;t see each other&apos;s posts, reels or stories, and they can&apos;t message you. Unblock any time.
+              </p>
+            </div>
+          ) : profile.is_private && !isMe && profile.follow_status !== "accepted" ? (
             <div className="flex flex-col items-center text-center gap-2 py-14 px-6 border-t border-border">
               <Lock size={22} className="text-muted" />
               <p className="text-sm font-semibold">This account is private</p>

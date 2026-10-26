@@ -3,8 +3,8 @@
  * When the text changes, bump TERMS_VERSION here *and* TERMS_VERSION in
  * backend/nepo/settings.py so new consents are recorded against it.
  */
-export const TERMS_VERSION = "2026-10-07";
-export const TERMS_UPDATED = "7 October 2026";
+export const TERMS_VERSION = "2026-10-25";
+export const TERMS_UPDATED = "25 October 2026";
 
 export interface TermsSection {
   title: string;
@@ -16,7 +16,7 @@ export const TERMS_SECTIONS: TermsSection[] = [
   {
     title: "1. About these Terms",
     paragraphs: [
-      "Nepo is a social platform where Tanzanian businesses, brands and creators share posts, reels and stories, message customers, and build a following. These Terms & Conditions (\"Terms\") are an agreement between you and Nepo and apply whenever you create an account or use the Nepo web app.",
+      "Nepo is a social platform where Tanzanian businesses, brands and creators share posts, reels and stories, message customers, and build a following. These Terms & Conditions (\"Terms\") are an agreement between you and Nepo and apply whenever you create an account or use the Nepo website or apps.",
       "By ticking \"I have read and agree\" and creating an account, you confirm that you have read these Terms, understand them, and agree to be bound by them. If you do not agree, do not create an account or use Nepo.",
     ],
   },
@@ -77,19 +77,20 @@ export const TERMS_SECTIONS: TermsSection[] = [
       "We collect the information you give us (such as your name, username, email address, profile details and business information), the content you post, your messages, and basic technical information needed to run and secure the service.",
       "We use this information to provide Nepo, to keep accounts and the platform secure, to show your content to the people you share it with, and to communicate with you about your account. Media you upload is stored with our cloud storage provider. We do not sell your personal information.",
       "Your profile, posts and reels are public unless you make your account private, in which case only approved followers can see your posts, reels and stories. Your phone number is never shown to other people. Direct messages are visible only to the people in the conversation.",
-      "We process personal data in line with applicable data protection law, including Tanzania's Personal Data Protection Act, 2022. You may ask to access, correct or delete your personal information.",
+      "We process personal data in line with applicable data protection law, including Tanzania's Personal Data Protection Act, 2022. You may ask to access, correct or delete your personal information. Our Privacy Policy, at /privacy on the Nepo website, explains all of this in full.",
     ],
   },
   {
-    title: "9. Reporting and removing content",
+    title: "9. Reporting, blocking and removing content",
     paragraphs: [
-      "We may remove content, limit its reach, or restrict features for any account that we reasonably believe breaks these Terms or the law, or puts other people at risk. If you believe content on Nepo infringes your rights or breaks these Terms, contact the Nepo team so we can review it.",
+      "Nepo has zero tolerance for objectionable content and abusive users. You can report any post, reel, comment or account from its menu or report button, and block any account from its profile. Blocked accounts can't find your profile, see your content or message you.",
+      "The Nepo team reviews reports within 24 hours. We remove content and suspend or close accounts that break these Terms or the law, or that put other people at risk, and we may limit the reach of content or restrict features while we review it.",
     ],
   },
   {
     title: "10. Suspension and closing your account",
     paragraphs: [
-      "You can stop using Nepo at any time. We may suspend or close your account, with or without notice, if you seriously or repeatedly breach these Terms, if we are required to by law, or if your account creates risk or legal exposure for Nepo or other users. Sections 5, 7, 11 and 13 continue to apply after your account is closed.",
+      "You can stop using Nepo at any time, and you can permanently delete your account and everything in it from Settings → Delete account in the app or at /delete-account on the Nepo website. We may suspend or close your account, with or without notice, if you seriously or repeatedly breach these Terms, if we are required to by law, or if your account creates risk or legal exposure for Nepo or other users. Sections 5, 7, 11 and 13 continue to apply after your account is closed.",
     ],
   },
   {

@@ -244,6 +244,14 @@ export default function SignupPage() {
           </label>
         </div>
 
+        <p className="text-xs text-muted px-1 -mt-1">
+          Our{" "}
+          <Link href="/privacy" target="_blank" className="text-brand-dark font-semibold">
+            Privacy Policy
+          </Link>{" "}
+          explains what we collect and how to delete your account.
+        </p>
+
         {(termsError || errors.accepted_terms) && (
           <p className="text-xs text-red-500 font-medium -mt-1 px-1">
             ⚠ {errors.accepted_terms ?? "You must read and accept the Terms & Conditions to register."}

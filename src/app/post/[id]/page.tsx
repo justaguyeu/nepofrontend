@@ -4,26 +4,31 @@ import { use, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bookmark, Heart, MessageCircle, Send, Trash2 } from "lucide-react";
-import { api } from "@/lib/api";
+import { ArrowLeft, Bookmark, Flag, Heart, MessageCircle, Send, Trash2 } from "lucide-react";
+import { api, type ReportTarget } from "@/lib/api";
 import { useLikeToggle } from "@/lib/useLikeToggle";
 import { useCachedUsername } from "@/lib/useCurrentUser";
 import { avatarUrl, formatCount as fmtCount, shareLink, timeAgo } from "@/lib/utils";
 import MediaView from "@/components/MediaView";
+import ReportDialog from "@/components/ReportDialog";
 import type { Comment, Post } from "@/lib/types";
 
 function CommentRow({
   comment,
   isReply = false,
   canDelete,
+  canReport,
   onReply,
   onDelete,
+  onReport,
 }: {
   comment: Comment;
   isReply?: boolean;
   canDelete: (comment: Comment) => boolean;
+  canReport: (comment: Comment) => boolean;
   onReply: (username: string, threadId: string) => void;
   onDelete: (comment: Comment) => void;
+  onReport: (comment: Comment) => void;
 }) {
   const like = useLikeToggle(comment.is_liked, comment.like_count, () => api.likeComment(comment.id));
   const avatarSize = isReply ? "h-6 w-6" : "h-8 w-8";
@@ -52,6 +57,11 @@ function CommentRow({
                 <Trash2 size={11} />
               </button>
             )}
+            {canReport(comment) && (
+              <button onClick={() => onReport(comment)} aria-label="Report comment" className="flex items-center">
+                <Flag size={11} />
+              </button>
+            )}
           </div>
         </div>
         <button
@@ -72,8 +82,10 @@ function CommentRow({
               comment={reply}
               isReply
               canDelete={canDelete}
+              canReport={canReport}
               onReply={onReply}
               onDelete={onDelete}
+              onReport={onReport}
             />
           ))}
         </div>
@@ -95,6 +107,7 @@ function PostDetail({ post }: { post: Post }) {
   const [posting, setPosting] = useState(false);
   const [slide, setSlide] = useState(0);
   const [toast, setToast] = useState("");
+  const [reportTarget, setReportTarget] = useState<{ type: ReportTarget; id: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -128,6 +141,7 @@ function PostDetail({ post }: { post: Post }) {
 
   const isPostOwner = myUsername === post.author.username;
   const canDelete = (c: Comment) => isPostOwner || c.author.username === myUsername;
+  const canReport = (c: Comment) => c.author.username !== myUsername;
 
   async function handleDelete(target: Comment) {
     if (!window.confirm("Delete this comment?")) return;
@@ -195,6 +209,15 @@ function PostDetail({ post }: { post: Post }) {
               <p className="text-[11px] text-muted">{timeAgo(post.created_at)}</p>
             </div>
           </Link>
+          {!isPostOwner && (
+            <button
+              onClick={() => setReportTarget({ type: "post", id: post.id })}
+              aria-label="Report post"
+              className="h-8 w-8 rounded-full hover:bg-border flex items-center justify-center text-muted"
+            >
+              <Flag size={15} />
+            </button>
+          )}
         </div>
 
         {/* Media */}
@@ -271,7 +294,15 @@ function PostDetail({ post }: { post: Post }) {
             <p className="text-center text-xs text-muted py-6">No comments yet. Be the first to say something.</p>
           )}
           {comments?.map((c) => (
-            <CommentRow key={c.id} comment={c} canDelete={canDelete} onReply={handleReply} onDelete={handleDelete} />
+            <CommentRow
+              key={c.id}
+              comment={c}
+              canDelete={canDelete}
+              canReport={canReport}
+              onReply={handleReply}
+              onDelete={handleDelete}
+              onReport={(target) => setReportTarget({ type: "comment", id: target.id })}
+            />
           ))}
         </div>
       </div>
@@ -306,6 +337,9 @@ function PostDetail({ post }: { post: Post }) {
             </button>
           </form>
         </div>
+      )}
+      {reportTarget && (
+        <ReportDialog targetType={reportTarget.type} targetId={reportTarget.id} onClose={() => setReportTarget(null)} />
       )}
     </main>
   );

@@ -69,7 +69,7 @@ function refreshAccessToken(): Promise<string | null> {
 }
 
 /** Pages anyone can see signed out; never bounce people from these back to /login. */
-const OPEN_PAGES = ["/login", "/signup", "/terms", "/welcome"];
+const OPEN_PAGES = ["/login", "/signup", "/terms", "/privacy", "/delete-account", "/welcome"];
 
 export function onOpenPage(): boolean {
   return OPEN_PAGES.some((p) => window.location.pathname.startsWith(p));
@@ -196,6 +196,20 @@ async function apiListAll<T>(path: string): Promise<T[]> {
 
 export type FollowStatus = "accepted" | "pending" | "none";
 
+export type ReportTarget = "post" | "comment" | "reel" | "reel_comment" | "user";
+/** Same reasons, same order, as Report.REASON_CHOICES in backend/social/models.py. */
+export const REPORT_REASONS = [
+  { value: "spam", label: "Spam" },
+  { value: "nudity", label: "Nudity or sexual content" },
+  { value: "harassment", label: "Bullying or harassment" },
+  { value: "hate", label: "Hate speech" },
+  { value: "violence", label: "Violence or dangerous acts" },
+  { value: "scam", label: "Scam or fraud" },
+  { value: "false_info", label: "False information" },
+  { value: "other", label: "Something else" },
+] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number]["value"];
+
 export interface Message {
   id: string;
   sender: { username: string; avatar_url: string };
@@ -240,6 +254,19 @@ export const api = {
     return apiFetch<void>("/auth/logout/", { method: "POST", body: JSON.stringify({ refresh }), skipAuth: true });
   },
   profile: (username: string) => apiFetch<UserProfile>(`/users/${username}/`),
+
+  /** Blocking hides both people's content from each other and ends any follow. */
+  block: (username: string) =>
+    apiFetch<{ blocked: boolean }>(`/users/${encodeURIComponent(username)}/block/`, { method: "POST" }),
+  unblock: (username: string) =>
+    apiFetch<{ blocked: boolean }>(`/users/${encodeURIComponent(username)}/block/`, { method: "DELETE" }),
+  blockedUsers: () => apiFetch<UserSummary[]>("/users/me/blocked/"),
+  /** target_id is the username for "user", otherwise the item's id. */
+  report: (payload: { target_type: ReportTarget; target_id: string; reason: ReportReason; details?: string }) =>
+    apiFetch<{ detail: string }>("/reports/", { method: "POST", body: JSON.stringify(payload) }),
+  /** Permanently deletes the signed-in account (needs the current password). */
+  deleteAccount: (password: string) =>
+    apiFetch<void>("/users/me/delete/", { method: "POST", body: JSON.stringify({ password }) }),
 
   businessCategories: () => apiList<BusinessCategory>("/business-categories/"),
   /** Returns null (not an error) when this user has no business profile yet. */

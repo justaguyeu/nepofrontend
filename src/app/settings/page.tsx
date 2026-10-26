@@ -4,12 +4,13 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, LogOut, Check, Camera, Store, KeyRound, FileText, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Ban, LogOut, Check, Camera, Store, KeyRound, FileText, Shield, Trash2, User as UserIcon } from "lucide-react";
 import { clearSession, setSession } from "@/lib/auth";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { api, errorMessage } from "@/lib/api";
 import { avatarUrl } from "@/lib/utils";
-import type { BusinessCategory, UserProfile } from "@/lib/types";
+import type { BusinessCategory, UserProfile, UserSummary } from "@/lib/types";
+import DeleteAccountForm from "@/components/DeleteAccountForm";
 
 export default function SettingsPage() {
   const { user, mutate } = useCurrentUser();
@@ -382,8 +383,15 @@ function SettingsForm({ user, mutate }: { user: UserProfile; mutate: (profile: U
 
         <div className="h-px bg-border w-full" />
 
+        <BlockedAccounts />
+
+        <div className="h-px bg-border w-full" />
+
         <Link href="/terms" className="flex items-center gap-2 text-sm font-semibold text-muted">
           <FileText size={16} /> Terms &amp; Conditions
+        </Link>
+        <Link href="/privacy" className="flex items-center gap-2 text-sm font-semibold text-muted">
+          <Shield size={16} /> Privacy Policy
         </Link>
 
         <button
@@ -393,7 +401,73 @@ function SettingsForm({ user, mutate }: { user: UserProfile; mutate: (profile: U
           <LogOut size={16} />
           Log out of {user.username}
         </button>
+
+        <DeleteAccount />
       </div>
     </main>
+  );
+}
+
+/** People you blocked, with a way to unblock each one. */
+function BlockedAccounts() {
+  const [users, setUsers] = useState<UserSummary[] | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api.blockedUsers().then(setUsers).catch(() => setError("Couldn't load blocked accounts."));
+  }, []);
+
+  async function unblock(username: string) {
+    try {
+      await api.unblock(username);
+      setUsers((list) => list && list.filter((u) => u.username !== username));
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't unblock. Please try again."));
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 mb-1">
+        <Ban size={18} className="text-brand" />
+        <h2 className="text-sm font-bold text-muted">Blocked accounts</h2>
+      </div>
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      {users === null && !error && <p className="text-xs text-muted">Loading...</p>}
+      {users?.length === 0 && (
+        <p className="text-xs text-muted">
+          You haven&apos;t blocked anyone. To block someone, open their profile and use the ⋯ menu.
+        </p>
+      )}
+      {users?.map((u) => (
+        <div key={u.id} className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-full overflow-hidden relative bg-border shrink-0">
+            <Image src={avatarUrl(u)} alt="" fill className="object-cover" unoptimized />
+          </div>
+          <div className="flex-1 min-w-0 leading-tight">
+            <p className="text-sm font-semibold truncate">{u.username}</p>
+            {u.full_name && <p className="text-xs text-muted truncate">{u.full_name}</p>}
+          </div>
+          <button
+            onClick={() => unblock(u.username)}
+            className="px-4 h-8 rounded-full text-xs font-bold bg-surface border border-border"
+          >
+            Unblock
+          </button>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function DeleteAccount() {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="flex flex-col gap-3 border border-red-500/30 rounded-2xl p-4 mt-4">
+      <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex items-center gap-2 text-sm font-bold text-red-500">
+        <Trash2 size={16} /> Delete account
+      </button>
+      {open && <DeleteAccountForm onDeleted={() => window.location.replace("/delete-account?done=1")} />}
+    </section>
   );
 }

@@ -6,23 +6,59 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Globe, Grid3x3, Play, Bookmark, Settings, MessageCircle } from "lucide-react";
+import { BadgeCheck, Ban, Flag, Globe, Grid3x3, MoreHorizontal, Play, Bookmark, Settings, MessageCircle } from "lucide-react";
 import { UserProfile } from "@/lib/types";
-import { api, type FollowStatus } from "@/lib/api";
+import { api, errorMessage, type FollowStatus } from "@/lib/api";
 import { avatarUrl, formatCount } from "@/lib/utils";
+import ReportDialog from "./ReportDialog";
 
 export default function ProfileHeader({
   profile,
   isMe = false,
+  onBlockedChange,
 }: {
   profile: UserProfile;
   isMe?: boolean;
+  /** Called after this person blocks (true) or unblocks (false) the profile. */
+  onBlockedChange?: (blocked: boolean) => void;
 }) {
   const router = useRouter();
   const [followStatus, setFollowStatus] = useState<FollowStatus>(profile.follow_status ?? "none");
   const [followerCount, setFollowerCount] = useState(profile.followers_count);
   const [followBusy, setFollowBusy] = useState(false);
   const [messaging, setMessaging] = useState(false);
+  const [blocked, setBlocked] = useState(profile.is_blocked ?? false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [reporting, setReporting] = useState(false);
+
+  async function handleBlock() {
+    setMenuOpen(false);
+    const ok = window.confirm(
+      `Block @${profile.username}?\n\nThey won't be able to find your profile, see your posts or message you, ` +
+        "and you won't see theirs. Any follow between you is removed. They won't be told."
+    );
+    if (!ok) return;
+    try {
+      await api.block(profile.username);
+      if (followStatus === "accepted") setFollowerCount((c) => Math.max(0, c - 1));
+      setFollowStatus("none");
+      setBlocked(true);
+      onBlockedChange?.(true);
+    } catch (err) {
+      window.alert(errorMessage(err, "Couldn't block this account. Please try again."));
+    }
+  }
+
+  async function handleUnblock() {
+    setMenuOpen(false);
+    try {
+      await api.unblock(profile.username);
+      setBlocked(false);
+      onBlockedChange?.(false);
+    } catch (err) {
+      window.alert(errorMessage(err, "Couldn't unblock this account. Please try again."));
+    }
+  }
 
   async function handleFollow() {
     if (followBusy) return;
@@ -90,25 +126,62 @@ export default function ProfileHeader({
             </Link>
           ) : (
             <div className="flex items-center gap-2 mt-1">
-              <button
-                onClick={handleFollow}
-                disabled={followBusy}
-                className={`px-5 h-9 rounded-full text-[13px] font-bold transition-all disabled:opacity-70 ${
-                  followStatus !== "none"
-                    ? "bg-surface border border-border text-foreground shadow-sm"
-                    : "bg-brand text-pill shadow"
-                }`}
-              >
-                {followStatus === "accepted" ? "Following" : followStatus === "pending" ? "Requested" : "Follow"}
-              </button>
-              <button
-                onClick={handleMessage}
-                disabled={messaging}
-                aria-label="Message"
-                className="h-9 w-9 rounded-full bg-surface border border-border card-shadow flex items-center justify-center disabled:opacity-50"
-              >
-                <MessageCircle size={15} />
-              </button>
+              {blocked ? (
+                <button
+                  onClick={handleUnblock}
+                  className="px-5 h-9 rounded-full text-[13px] font-bold bg-surface border border-border text-foreground shadow-sm"
+                >
+                  Unblock
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleFollow}
+                    disabled={followBusy}
+                    className={`px-5 h-9 rounded-full text-[13px] font-bold transition-all disabled:opacity-70 ${
+                      followStatus !== "none"
+                        ? "bg-surface border border-border text-foreground shadow-sm"
+                        : "bg-brand text-pill shadow"
+                    }`}
+                  >
+                    {followStatus === "accepted" ? "Following" : followStatus === "pending" ? "Requested" : "Follow"}
+                  </button>
+                  <button
+                    onClick={handleMessage}
+                    disabled={messaging}
+                    aria-label="Message"
+                    className="h-9 w-9 rounded-full bg-surface border border-border card-shadow flex items-center justify-center disabled:opacity-50"
+                  >
+                    <MessageCircle size={15} />
+                  </button>
+                </>
+              )}
+              <div className="relative">
+                <button
+                  onClick={() => setMenuOpen((o) => !o)}
+                  aria-label="More options"
+                  aria-expanded={menuOpen}
+                  className="h-9 w-9 rounded-full bg-surface border border-border card-shadow flex items-center justify-center"
+                >
+                  <MoreHorizontal size={15} />
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 top-11 z-20 bg-surface border border-border rounded-xl card-shadow py-1 min-w-[180px] max-w-[80vw]">
+                    <button
+                      onClick={() => { setMenuOpen(false); setReporting(true); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-border whitespace-nowrap"
+                    >
+                      <Flag size={14} /> Report account
+                    </button>
+                    <button
+                      onClick={blocked ? handleUnblock : handleBlock}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-border whitespace-nowrap"
+                    >
+                      <Ban size={14} /> {blocked ? "Unblock" : "Block"} @{profile.username}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -149,8 +222,10 @@ export default function ProfileHeader({
         </div>
       </div>
 
+      {reporting && <ReportDialog targetType="user" targetId={profile.username} onClose={() => setReporting(false)} />}
+
       {/* Story highlights */}
-      {profile.highlights.length > 0 && (
+      {!blocked && profile.highlights.length > 0 && (
         <div className="flex gap-4 overflow-x-auto no-scrollbar py-3.5">
           {profile.highlights.map((h) => (
             <div key={h.id} className="flex flex-col items-center gap-1.5 shrink-0 w-16">

@@ -3,10 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 /** Only for signed-out visitors; signed-in people are sent to the feed. */
 const AUTH_PATHS = ["/login", "/signup"];
 /**
- * Open to everyone, signed in or not: the landing page, and the Terms
- * (people must be able to read them before signing up).
+ * Open to everyone, signed in or not: the landing page, the Terms and
+ * Privacy Policy (readable before signing up, and linked from the app
+ * stores), and the account-deletion page the stores require.
  */
-const OPEN_PATHS = ["/terms", "/welcome"];
+const OPEN_PATHS = ["/terms", "/privacy", "/delete-account", "/welcome"];
 /** Set by src/lib/auth.ts (a marker, not a token). */
 const SESSION_COOKIE = "nepo_session";
 

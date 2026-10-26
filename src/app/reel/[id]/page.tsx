@@ -3,12 +3,13 @@
 import { use, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Heart, Music2, Send, Trash2 } from "lucide-react";
-import { api } from "@/lib/api";
+import { ArrowLeft, Flag, Heart, Music2, Send, Trash2 } from "lucide-react";
+import { api, type ReportTarget } from "@/lib/api";
 import { useLikeToggle } from "@/lib/useLikeToggle";
 import { useCachedUsername } from "@/lib/useCurrentUser";
 import { avatarUrl, formatCount as fmtCount, timeAgo } from "@/lib/utils";
 import type { Reel, ReelComment } from "@/lib/types";
+import ReportDialog from "@/components/ReportDialog";
 
 function ReelDetail({ reel }: { reel: Reel }) {
   const myUsername = useCachedUsername();
@@ -17,6 +18,7 @@ function ReelDetail({ reel }: { reel: Reel }) {
   const [commentError, setCommentError] = useState("");
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ type: ReportTarget; id: string } | null>(null);
 
   useEffect(() => {
     api
@@ -83,6 +85,15 @@ function ReelDetail({ reel }: { reel: Reel }) {
             <span className="text-[13px] font-semibold">{fmtCount(like.count)}</span>
           </button>
           <span className="text-[13px] font-semibold text-muted">{fmtCount(reel.view_count)} views</span>
+          {myUsername !== reel.author.username && (
+            <button
+              onClick={() => setReportTarget({ type: "reel", id: reel.id })}
+              aria-label="Report reel"
+              className="ml-auto text-muted"
+            >
+              <Flag size={17} />
+            </button>
+          )}
           {comments && (
             <span className="text-[13px] font-semibold text-muted">
               {fmtCount(comments.length)} {comments.length === 1 ? "comment" : "comments"}
@@ -132,6 +143,15 @@ function ReelDetail({ reel }: { reel: Reel }) {
                       <Trash2 size={11} />
                     </button>
                   )}
+                  {c.author.username !== myUsername && (
+                    <button
+                      onClick={() => setReportTarget({ type: "reel_comment", id: c.id })}
+                      aria-label="Report comment"
+                      className="flex items-center"
+                    >
+                      <Flag size={11} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -158,6 +178,9 @@ function ReelDetail({ reel }: { reel: Reel }) {
           </button>
         </form>
       </div>
+      {reportTarget && (
+        <ReportDialog targetType={reportTarget.type} targetId={reportTarget.id} onClose={() => setReportTarget(null)} />
+      )}
     </main>
   );
 }

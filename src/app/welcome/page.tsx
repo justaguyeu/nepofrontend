@@ -392,6 +392,8 @@ export default function WelcomePage() {
             <Link href="/signup" className="hover:text-foreground">Sign up</Link>
             <a href="#features" className="hover:text-foreground">Features</a>
             <Link href="/terms" className="hover:text-foreground">Terms &amp; Conditions</Link>
+            <Link href="/privacy" className="hover:text-foreground">Privacy Policy</Link>
+            <Link href="/delete-account" className="hover:text-foreground">Delete account</Link>
           </nav>
         </div>
         <div className="mx-auto flex max-w-6xl flex-col gap-1 border-t border-border px-5 py-5 text-xs text-muted sm:flex-row sm:justify-between">

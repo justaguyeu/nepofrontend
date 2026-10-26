@@ -25,6 +25,8 @@ export interface UserProfile extends UserSummary {
   is_following: boolean;
   /** "pending" = follow request sent to a private account, not yet accepted. */
   follow_status: "accepted" | "pending" | "none";
+  /** You blocked this account: their content is hidden until you unblock. */
+  is_blocked: boolean;
 }
 
 export interface PostMedia {

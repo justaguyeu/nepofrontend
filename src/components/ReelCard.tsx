@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   Camera,
   Compass,
+  Flag,
   Heart,
   Home,
   MessageCircle,
@@ -22,6 +23,7 @@ import { api, type FollowStatus } from "@/lib/api";
 import { avatarUrl, formatCount as fmtCount, shareLink } from "@/lib/utils";
 import { useLikeToggle } from "@/lib/useLikeToggle";
 import { useCachedUsername } from "@/lib/useCurrentUser";
+import ReportDialog from "./ReportDialog";
 
 export default function ReelCard({ reel }: { reel: Reel }) {
   const like = useLikeToggle(reel.is_liked, reel.like_count, () => api.likeReel(reel.id));
@@ -29,6 +31,7 @@ export default function ReelCard({ reel }: { reel: Reel }) {
   const [followStatus, setFollowStatus] = useState<FollowStatus>(reel.is_following_author ? "accepted" : "none");
   const [followBusy, setFollowBusy] = useState(false);
   const [toast, setToast] = useState("");
+  const [reporting, setReporting] = useState(false);
   const myUsername = useCachedUsername();
   const videoRef = useRef<HTMLVideoElement>(null);
   const viewCounted = useRef(false);
@@ -141,11 +144,21 @@ export default function ReelCard({ reel }: { reel: Reel }) {
             <Send size={18} />
           </span>
         </button>
+        {/* Report (other people's reels) */}
+        {!isMine && (
+          <button onClick={() => setReporting(true)} aria-label="Report reel" className="flex flex-col items-center gap-1">
+            <span className="h-11 w-11 rounded-full bg-black/30 backdrop-blur flex items-center justify-center">
+              <Flag size={17} />
+            </span>
+          </button>
+        )}
         {/* Author avatar */}
         <Link href={`/profile/${reel.author.username}`} aria-label={reel.author.username} className="h-10 w-10 rounded-full overflow-hidden relative border-2 border-white mt-1">
           <Image src={avatarUrl(reel.author)} alt="" fill className="object-cover" unoptimized />
         </Link>
       </div>
+
+      {reporting && <ReportDialog targetType="reel" targetId={reel.id} onClose={() => setReporting(false)} />}
 
       {toast && (
         <p className="absolute top-16 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur text-white text-xs font-semibold rounded-full px-3 py-1.5">
