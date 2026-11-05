@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import NepoLogo from "@/components/NepoLogo";
+import NepoWordmark from "@/components/NepoWordmark";
 import { setSession } from "@/lib/auth";
 import { api, ApiError, errorMessage, type LogoutReason } from "@/lib/api";
 
@@ -57,7 +58,9 @@ export default function LoginPage({ searchParams }: { searchParams: Promise<{ re
     <main className="flex-1 flex flex-col justify-center px-6 max-w-sm mx-auto w-full min-h-svh">
       <div className="flex flex-col items-center mb-8 text-center">
         <NepoLogo size={56} className="mb-4" />
-        <h1 className="text-2xl font-extrabold">Nepo</h1>
+        <h1 className="flex justify-center">
+          <NepoWordmark height={36} />
+        </h1>
         <p className="text-sm text-muted mt-2 leading-relaxed">
           The social platform for Tanzanian business people. Showcase your
           shop, meet customers, and follow the makers, traders, and
@@ -99,14 +102,14 @@ export default function LoginPage({ searchParams }: { searchParams: Promise<{ re
       </form>
 
       <p className="text-center text-sm text-muted mt-6">
-        New to Nepo?{" "}
+        New to Nepofly?{" "}
         <Link href="/signup" className="text-brand-dark font-semibold">
           Create an account
         </Link>
       </p>
       <p className="text-center text-sm mt-3">
         <Link href="/welcome" className="text-muted underline underline-offset-4 hover:text-foreground">
-          What is Nepo? See how it works
+          What is Nepofly? See how it works
         </Link>
       </p>
     </main>

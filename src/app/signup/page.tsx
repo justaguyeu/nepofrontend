@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Briefcase, CheckCircle2, ExternalLink } from "lucide-react";
 import NepoLogo from "@/components/NepoLogo";
+import NepoWordmark from "@/components/NepoWordmark";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { setSession } from "@/lib/auth";
 import TermsContent from "@/components/TermsContent";
@@ -101,9 +102,12 @@ export default function SignupPage() {
       {/* Logo */}
       <div className="flex flex-col items-center mb-8 text-center">
         <NepoLogo size={64} className="mb-4 shadow-md" />
-        <h1 className="text-2xl font-extrabold tracking-tight">Join Nepo</h1>
+        <h1 className="flex items-center justify-center gap-2 text-2xl font-extrabold tracking-tight">
+          <span>Join</span>
+          <NepoWordmark height={36} />
+        </h1>
         <p className="text-sm text-muted mt-2 leading-relaxed max-w-xs">
-          Nepo is a business-first social platform. Every account represents a
+          Nepofly is a business-first social platform. Every account represents a
           business, brand, or creator.
         </p>
       </div>
@@ -191,14 +195,14 @@ export default function SignupPage() {
               Business Account ✓
             </p>
             <p className="text-xs text-muted leading-snug mt-0.5">
-              All Nepo accounts must be registered as a business account
+              All Nepofly accounts must be registered as a business account
             </p>
           </div>
         </button>
 
         {businessError && (
           <p className="text-xs text-red-500 font-medium -mt-1 px-1">
-            ⚠ You must check the Business Account box to register on Nepo.
+            ⚠ You must check the Business Account box to register on Nepofly.
           </p>
         )}
 
@@ -238,7 +242,7 @@ export default function SignupPage() {
             />
             <span className="text-xs leading-snug">
               {readTerms
-                ? "I have read and agree to the Nepo Terms & Conditions."
+                ? "I have read and agree to the Nepofly Terms & Conditions."
                 : "Scroll to the end of the Terms & Conditions to continue."}
             </span>
           </label>
@@ -277,7 +281,7 @@ export default function SignupPage() {
       </p>
       <p className="text-center text-sm mt-3">
         <Link href="/welcome" className="text-muted underline underline-offset-4 hover:text-foreground">
-          Learn more about Nepo
+          Learn more about Nepofly
         </Link>
       </p>
     </main>
