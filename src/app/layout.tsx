@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Nepo",
-  description: "Nepo — share, discover, and grow your business or your following.",
+  title: "Nepo fly",
+  description: "Nepo fly — share, discover, and grow your business or your following.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
