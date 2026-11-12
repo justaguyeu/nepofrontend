@@ -9,7 +9,7 @@ import type {
 } from "./types";
 import { clearSession, getAccessToken, getRefreshToken, setSession } from "./auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://nepobackend.onrender.com/api";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://nepoflybackend.onrender.com/api";
 
 interface Paginated<T> {
   results: T[];
